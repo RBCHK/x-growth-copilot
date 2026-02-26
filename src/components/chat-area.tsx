@@ -2,6 +2,7 @@
 
 import { ChatMessages } from "@/components/chat-messages";
 import { ChatInput } from "@/components/chat-input";
+import { TextSelectionPopup } from "@/components/text-selection-popup";
 import { useConversation } from "@/contexts/conversation-context";
 
 export function ChatArea() {
@@ -24,6 +25,7 @@ export function ChatArea() {
         onContentTypeChange={setContentType}
         onSend={sendMessage}
       />
+      <TextSelectionPopup />
     </div>
   );
 }
