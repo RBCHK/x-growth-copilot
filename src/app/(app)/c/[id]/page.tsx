@@ -18,7 +18,7 @@ export default function ConversationPage({ params }: Props) {
         <div className="flex flex-1 flex-col overflow-hidden">
           <ChatArea />
         </div>
-        <aside className="hidden w-80 shrink-0 border-l border-white/[0.04] bg-background lg:flex lg:flex-col">
+        <aside className="hidden w-80 shrink-0 border-l border-border bg-background lg:flex lg:flex-col">
           <NotesSidebar />
         </aside>
       </div>

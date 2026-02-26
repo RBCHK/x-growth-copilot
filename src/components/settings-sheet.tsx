@@ -149,7 +149,7 @@ function VoiceBankTab() {
             filtered.map((entry) => (
               <div
                 key={entry.id}
-                className="group relative rounded-lg border border-white/[0.08] bg-muted/40 px-3 py-2.5 transition-colors duration-150"
+                className="group relative rounded-lg border border-border bg-muted/40 px-3 py-2.5 transition-colors duration-150"
               >
                 <p className="pr-8 text-sm leading-relaxed">{entry.content}</p>
                 <Button

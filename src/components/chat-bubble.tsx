@@ -15,7 +15,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
           "max-w-[80%] rounded-xl px-4 py-2.5 text-sm leading-relaxed",
           isUser
             ? "bg-primary text-primary-foreground rounded-br-md"
-            : "border border-white/[0.06] bg-muted text-foreground rounded-bl-md",
+            : "border border-border bg-muted text-foreground rounded-bl-md",
         )}
       >
         <p className="whitespace-pre-wrap">{message.content}</p>

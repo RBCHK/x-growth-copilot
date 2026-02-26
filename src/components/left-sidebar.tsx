@@ -35,19 +35,19 @@ function slotStatusConfig(status: SlotStatus) {
     case "empty":
       return {
         icon: <Circle className="h-3.5 w-3.5 text-muted-foreground" />,
-        className: "border border-white/[0.08] bg-muted/40",
+        className: "border border-border bg-muted/40",
         label: "Empty",
       };
     case "filled":
       return {
         icon: <Clock className="h-3.5 w-3.5 text-blue-400" />,
-        className: "border border-white/[0.08] bg-blue-500/10",
+        className: "border border-border bg-blue-500/10",
         label: "Ready",
       };
     case "posted":
       return {
         icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />,
-        className: "border border-white/[0.08] bg-emerald-500/10",
+        className: "border border-border bg-emerald-500/10",
         label: "Posted",
       };
   }

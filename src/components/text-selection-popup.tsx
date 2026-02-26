@@ -107,7 +107,7 @@ export function TextSelectionPopup() {
   return (
     <div
       ref={popupRef}
-      className="fixed z-50 flex items-center gap-2 rounded-lg border border-white/[0.08] bg-popover p-2 animate-in fade-in-0 zoom-in-95 duration-200"
+      className="fixed z-50 flex items-center gap-2 rounded-lg border border-border bg-popover p-2 animate-in fade-in-0 zoom-in-95 duration-200"
       style={{
         left: position.x,
         top: position.y,
