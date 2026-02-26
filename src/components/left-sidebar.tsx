@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { MOCK_DRAFTS, MOCK_SLOTS } from "@/lib/mock-data";
+import { SettingsSheet } from "@/components/settings-sheet";
 import type { ContentType, Draft, ScheduledSlot, SlotStatus } from "@/lib/types";
 
 const contentTypeIcon: Record<ContentType, React.ReactNode> = {
@@ -199,14 +200,15 @@ export function LeftSidebar() {
       <Separator />
 
       <div className="p-2">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2 text-muted-foreground"
-          onClick={() => router.push("/settings")}
-        >
-          <Settings className="h-4 w-4" />
-          <span className="text-sm">Settings</span>
-        </Button>
+        <SettingsSheet>
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-muted-foreground"
+          >
+            <Settings className="h-4 w-4" />
+            <span className="text-sm">Settings</span>
+          </Button>
+        </SettingsSheet>
       </div>
     </div>
   );
