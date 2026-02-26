@@ -1,11 +1,27 @@
+"use client";
+
+import { use } from "react";
 import { ChatArea } from "@/components/chat-area";
+import { NotesSidebar } from "@/components/notes-sidebar";
+import { ConversationProvider } from "@/contexts/conversation-context";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-export default async function ConversationPage({ params }: Props) {
-  const { id } = await params;
+export default function ConversationPage({ params }: Props) {
+  const { id } = use(params);
 
-  return <ChatArea conversationId={id} />;
+  return (
+    <ConversationProvider conversationId={id}>
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <ChatArea />
+        </div>
+        <aside className="hidden w-80 shrink-0 border-l border-border lg:flex lg:flex-col">
+          <NotesSidebar />
+        </aside>
+      </div>
+    </ConversationProvider>
+  );
 }
