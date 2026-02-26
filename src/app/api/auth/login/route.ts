@@ -11,8 +11,18 @@ function getAppPassword(): string {
 }
 
 export async function POST(req: NextRequest) {
+  let body: { password?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
+
   const APP_PASSWORD = getAppPassword();
-  const { password } = await req.json();
+  const password = body?.password;
 
   if (password !== APP_PASSWORD) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });

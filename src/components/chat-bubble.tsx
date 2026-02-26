@@ -12,10 +12,10 @@ export function ChatBubble({ message }: ChatBubbleProps) {
     <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+          "max-w-[80%] rounded-xl px-4 py-2.5 text-sm leading-relaxed",
           isUser
             ? "bg-primary text-primary-foreground rounded-br-md"
-            : "bg-muted text-foreground rounded-bl-md",
+            : "border border-white/[0.06] bg-muted text-foreground rounded-bl-md",
         )}
       >
         <p className="whitespace-pre-wrap">{message.content}</p>

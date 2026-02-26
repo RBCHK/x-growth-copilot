@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, type KeyboardEvent } from "react";
+import { useRef, useCallback, useEffect, type KeyboardEvent } from "react";
 import { SendHorizontal, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CONTENT_TYPES, type ContentType } from "@/lib/types";
+
+const MIN_HEIGHT_PX = 72; /* ~3 lines with text-sm leading-relaxed */
+const MAX_HEIGHT_PX = 200;
 
 interface ChatInputProps {
   value: string;
@@ -33,9 +36,23 @@ export function ChatInput({
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-  }, []);
+    if (!value.trim()) {
+      el.style.height = `${MIN_HEIGHT_PX}px`;
+      return;
+    }
+    el.style.height = `${MAX_HEIGHT_PX + 1}px`;
+    const h = Math.min(Math.max(el.scrollHeight, MIN_HEIGHT_PX), MAX_HEIGHT_PX);
+    el.style.height = `${h}px`;
+  }, [value]);
+
+  useEffect(() => {
+    adjustHeight();
+  }, [value, adjustHeight]);
+
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    onChange(e.target.value);
+    requestAnimationFrame(() => adjustHeight());
+  }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -45,53 +62,53 @@ export function ChatInput({
   }
 
   return (
-    <div className="border-t border-border bg-background px-4 py-3">
-      <div className="mx-auto flex w-full max-w-2xl items-end gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+    <div className="bg-background px-4 pt-4 pb-16">
+      <div className="mx-auto w-full max-w-2xl">
+        <div className="rounded-xl border border-white/[0.08] bg-card transition-colors duration-150 focus-within:border-white/[0.12]">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Paste a tweet URL or type your message…"
+            rows={3}
+            disabled={disabled}
+            className="min-h-[72px] w-full max-h-[200px] resize-none border-0 bg-transparent px-4 pt-4 pb-2 text-left text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 disabled:opacity-50 transition-[height] duration-150 ease-out"
+          />
+          <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 shrink-0 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                >
+                  {contentType}
+                  <ChevronDown className="h-3 w-3 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {CONTENT_TYPES.map((type) => (
+                  <DropdownMenuItem
+                    key={type}
+                    onClick={() => onContentTypeChange(type)}
+                  >
+                    {type}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 gap-1 text-xs"
+              size="icon"
+              className="h-8 w-8 shrink-0 rounded-md"
+              onClick={onSend}
+              disabled={disabled || !value.trim()}
             >
-              {contentType}
-              <ChevronDown className="h-3 w-3 opacity-50" />
+              <SendHorizontal className="h-4 w-4" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {CONTENT_TYPES.map((type) => (
-              <DropdownMenuItem
-                key={type}
-                onClick={() => onContentTypeChange(type)}
-              >
-                {type}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            adjustHeight();
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="Paste a tweet URL or type your message…"
-          rows={1}
-          disabled={disabled}
-          className="flex-1 resize-none rounded-lg border border-input bg-transparent px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-        />
-
-        <Button
-          size="icon"
-          className="h-9 w-9 shrink-0"
-          onClick={onSend}
-          disabled={disabled || !value.trim()}
-        >
-          <SendHorizontal className="h-4 w-4" />
-        </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -17,7 +17,6 @@ export function TextSelectionPopup() {
   const [position, setPosition] = useState<Position | null>(null);
   const [selectedText, setSelectedText] = useState("");
   const popupRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const { addNote } = useConversation();
 
   const hidePopup = useCallback(() => {
@@ -42,8 +41,9 @@ export function TextSelectionPopup() {
 
         const anchorNode = selection?.anchorNode;
         if (!anchorNode || !chatArea.contains(anchorNode)) return;
+        if (!selection.rangeCount) return;
 
-        const range = selection!.getRangeAt(0);
+        const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
 
         setSelectedText(text);
@@ -107,7 +107,7 @@ export function TextSelectionPopup() {
   return (
     <div
       ref={popupRef}
-      className="fixed z-50 flex items-center gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-lg animate-in fade-in-0 zoom-in-95"
+      className="fixed z-50 flex items-center gap-2 rounded-lg border border-white/[0.08] bg-popover p-2 animate-in fade-in-0 zoom-in-95 duration-200"
       style={{
         left: position.x,
         top: position.y,
@@ -119,7 +119,7 @@ export function TextSelectionPopup() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 px-2.5 text-xs"
+            className="h-8 gap-2 px-2.5 text-xs"
             onClick={handleAddToNotes}
           >
             <StickyNote className="h-3.5 w-3.5" />
@@ -134,7 +134,7 @@ export function TextSelectionPopup() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 px-2.5 text-xs"
+            className="h-8 gap-2 px-2.5 text-xs"
             onClick={handleNewDraft}
           >
             <FilePlus className="h-3.5 w-3.5" />
@@ -149,7 +149,7 @@ export function TextSelectionPopup() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 px-2.5 text-xs"
+            className="h-8 gap-2 px-2.5 text-xs"
             onClick={handleAddToQueue}
           >
             <CalendarPlus className="h-3.5 w-3.5" />

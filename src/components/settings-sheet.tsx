@@ -113,7 +113,7 @@ function VoiceBankTab() {
           </Select>
           <Button
             size="sm"
-            className="gap-1"
+            className="gap-2"
             onClick={handleAdd}
             disabled={!newContent.trim()}
           >
@@ -149,13 +149,13 @@ function VoiceBankTab() {
             filtered.map((entry) => (
               <div
                 key={entry.id}
-                className="group relative rounded-lg border border-border bg-muted/30 px-3 py-2.5"
+                className="group relative rounded-lg border border-white/[0.08] bg-muted/40 px-3 py-2.5 transition-colors duration-150"
               >
                 <p className="pr-8 text-sm leading-relaxed">{entry.content}</p>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-1 top-1 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="absolute right-2 top-2 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
                   onClick={() => handleDelete(entry.id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -180,7 +180,7 @@ function StrategyConfigTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">Posts per day</label>
         <Input
           type="number"
@@ -192,7 +192,7 @@ function StrategyConfigTab() {
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">Reply sessions per day</label>
         <Input
           type="number"
@@ -204,7 +204,7 @@ function StrategyConfigTab() {
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">Time slots (PST)</label>
         <Input
           value={timeSlots}
@@ -233,7 +233,7 @@ function ApiKeysTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">Anthropic API Key</label>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -282,7 +282,7 @@ function AuthTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">Current password</label>
         <Input
           type="password"
@@ -290,7 +290,7 @@ function AuthTab() {
           onChange={(e) => setCurrentPassword(e.target.value)}
         />
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">New password</label>
         <Input
           type="password"
@@ -316,7 +316,7 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
       <SheetTrigger asChild>{children}</SheetTrigger>
       <SheetContent side="left" className="w-[420px] sm:max-w-[420px]">
         <SheetHeader>
-          <SheetTitle>Settings</SheetTitle>
+          <SheetTitle className="tracking-[-0.02em] font-medium">Settings</SheetTitle>
         </SheetHeader>
         <div className="mt-4">
           <Tabs defaultValue="voice-bank">

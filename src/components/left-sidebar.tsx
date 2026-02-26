@@ -35,19 +35,19 @@ function slotStatusConfig(status: SlotStatus) {
     case "empty":
       return {
         icon: <Circle className="h-3.5 w-3.5 text-muted-foreground" />,
-        className: "border-dashed border-muted-foreground/30 bg-muted/30",
+        className: "border border-white/[0.08] bg-muted/40",
         label: "Empty",
       };
     case "filled":
       return {
         icon: <Clock className="h-3.5 w-3.5 text-blue-400" />,
-        className: "border-blue-500/30 bg-blue-500/5",
+        className: "border border-white/[0.08] bg-blue-500/10",
         label: "Ready",
       };
     case "posted":
       return {
         icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />,
-        className: "border-emerald-500/30 bg-emerald-500/5",
+        className: "border border-white/[0.08] bg-emerald-500/10",
         label: "Posted",
       };
   }
@@ -79,7 +79,7 @@ function DraftItem({ draft, isActive }: { draft: Draft; isActive: boolean }) {
     <button
       onClick={() => router.push(`/c/${draft.id}`)}
       className={cn(
-        "flex w-full flex-col gap-1 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent",
+        "flex w-full flex-col gap-2 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-accent",
         isActive && "bg-accent",
       )}
     >
@@ -108,12 +108,12 @@ function SlotItem({ slot }: { slot: ScheduledSlot }) {
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-md border px-3 py-2 transition-colors",
+        "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-150",
         config.className,
       )}
     >
       {config.icon}
-      <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
+      <div className="flex flex-1 flex-col gap-2 overflow-hidden">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium">{slot.timeSlot}</span>
           <Badge variant="secondary" className="text-xs font-normal">
@@ -151,7 +151,7 @@ export function LeftSidebar() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 py-3">
-        <h2 className="text-sm font-semibold tracking-tight">x-growth</h2>
+        <h2 className="text-sm font-medium tracking-[-0.02em]">x-growth</h2>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleNewDraft}>
           <Plus className="h-4 w-4" />
         </Button>
@@ -166,8 +166,8 @@ export function LeftSidebar() {
         </TabsList>
 
         <TabsContent value="drafts" className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full px-2 py-1">
-            <div className="flex flex-col gap-0.5">
+          <ScrollArea className="h-full px-2 py-2">
+            <div className="flex flex-col gap-2">
               {MOCK_DRAFTS.map((draft) => (
                 <DraftItem
                   key={draft.id}
@@ -180,11 +180,11 @@ export function LeftSidebar() {
         </TabsContent>
 
         <TabsContent value="scheduled" className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full px-2 py-1">
-            <div className="flex flex-col gap-3">
+          <ScrollArea className="h-full px-2 py-2">
+            <div className="flex flex-col gap-4">
               {groupedSlots.map(([dateLabel, slots]) => (
-                <div key={dateLabel} className="flex flex-col gap-1.5">
-                  <span className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <div key={dateLabel} className="flex flex-col gap-2">
+                  <span className="px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     {dateLabel}
                   </span>
                   {slots.map((slot) => (
@@ -197,9 +197,7 @@ export function LeftSidebar() {
         </TabsContent>
       </Tabs>
 
-      <Separator />
-
-      <div className="p-2">
+      <div className="p-4">
         <SettingsSheet>
           <Button
             variant="ghost"
