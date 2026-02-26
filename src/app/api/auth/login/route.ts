@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const APP_PASSWORD = process.env.APP_PASSWORD ?? "admin";
+function getAppPassword(): string {
+  const pw = process.env.APP_PASSWORD;
+  if (!pw) {
+    throw new Error(
+      "APP_PASSWORD environment variable is not set. Add it to .env.local",
+    );
+  }
+  return pw;
+}
 
 export async function POST(req: NextRequest) {
+  const APP_PASSWORD = getAppPassword();
   const { password } = await req.json();
 
   if (password !== APP_PASSWORD) {

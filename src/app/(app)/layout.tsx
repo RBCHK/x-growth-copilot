@@ -1,3 +1,6 @@
+import { LeftSidebar } from "@/components/left-sidebar";
+import { MobileSidebar } from "@/components/mobile-sidebar";
+
 export default function AppLayout({
   children,
 }: {
@@ -5,11 +8,12 @@ export default function AppLayout({
 }) {
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Left Sidebar — will be filled in Sprint 1.3 */}
+      {/* Mobile sidebar trigger — visible only on small screens */}
+      <MobileSidebar />
+
+      {/* Left Sidebar — desktop */}
       <aside className="hidden w-72 shrink-0 border-r border-border md:flex md:flex-col">
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Left Sidebar
-        </div>
+        <LeftSidebar />
       </aside>
 
       {/* Center — Main Chat Area */}
