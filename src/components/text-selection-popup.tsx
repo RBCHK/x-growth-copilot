@@ -9,10 +9,15 @@ import { useRouter } from "next/navigation";
 import { useConversation } from "@/contexts/conversation-context";
 import { addToQueue } from "@/app/actions/schedule";
 import { createConversation } from "@/app/actions/conversations";
+import { NOTES_PANEL_OPEN } from "@/components/notes-sidebar-container";
+
+const POPUP_HEIGHT = 48;
+const SAFE_MARGIN = 12;
 
 interface Position {
   x: number;
   y: number;
+  flipBelow: boolean;
 }
 
 export function TextSelectionPopup() {
@@ -49,10 +54,13 @@ export function TextSelectionPopup() {
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
 
+        const fitsAbove = rect.top - POPUP_HEIGHT >= SAFE_MARGIN;
+
         setSelectedText(text);
         setPosition({
           x: rect.left + rect.width / 2,
-          y: rect.top - 8,
+          y: fitsAbove ? rect.top - 8 : rect.bottom + 8,
+          flipBelow: !fitsAbove,
         });
       }, 10);
     }
@@ -74,6 +82,7 @@ export function TextSelectionPopup() {
     addNote(selectedText);
     window.getSelection()?.removeAllRanges();
     hidePopup();
+    window.dispatchEvent(new Event(NOTES_PANEL_OPEN));
     toast.success("Added to Notes");
   }
 
@@ -125,24 +134,9 @@ export function TextSelectionPopup() {
       style={{
         left: position.x,
         top: position.y,
-        transform: "translate(-50%, -100%)",
+        transform: position.flipBelow ? "translate(-50%, 0%)" : "translate(-50%, -100%)",
       }}
     >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-2 px-2.5 text-xs"
-            onClick={handleAddToNotes}
-          >
-            <StickyNote className="h-3.5 w-3.5" />
-            Notes
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Add to Notes</TooltipContent>
-      </Tooltip>
-
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -156,6 +150,21 @@ export function TextSelectionPopup() {
           </Button>
         </TooltipTrigger>
         <TooltipContent>Create new draft with this text</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-2 px-2.5 text-xs"
+            onClick={handleAddToNotes}
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+            Notes
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Add to Notes</TooltipContent>
       </Tooltip>
 
       <Tooltip>

@@ -1,17 +1,28 @@
 "use client";
 
-import { StickyNote, X, Trash2 } from "lucide-react";
+import { StickyNote, X, Trash2, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useConversation } from "@/contexts/conversation-context";
 
-export function NotesSidebar() {
+interface NotesSidebarProps {
+  onClose?: () => void;
+}
+
+export function NotesSidebar({ onClose }: NotesSidebarProps) {
   const { notes, removeNote, clearNotes } = useConversation();
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-6 py-4">
-        <h2 className="text-sm font-medium tracking-[-0.02em] text-muted-foreground">Notes</h2>
+      <div className="flex items-center justify-between gap-2 px-6 py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {onClose && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
+              <ChevronLeft className="h-4 w-4" aria-hidden />
+            </Button>
+          )}
+          <h2 className="truncate text-sm font-medium tracking-[-0.02em] text-muted-foreground">Notes</h2>
+        </div>
         {notes.length > 0 && (
           <Button
             variant="ghost"

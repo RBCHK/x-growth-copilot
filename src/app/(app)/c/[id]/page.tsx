@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { ChatArea } from "@/components/chat-area";
-import { NotesSidebar } from "@/components/notes-sidebar";
+import { NotesSidebarContainer } from "@/components/notes-sidebar-container";
 import { ConversationProvider } from "@/contexts/conversation-context";
 import { createConversation, getConversation } from "@/app/actions/conversations";
 
@@ -31,9 +31,7 @@ export default async function ConversationPage({ params }: Props) {
         <div className="flex flex-1 flex-col overflow-hidden">
           <ChatArea />
         </div>
-        <aside className="hidden w-80 shrink-0 border-l border-border bg-background lg:flex lg:flex-col">
-          <NotesSidebar />
-        </aside>
+        <NotesSidebarContainer />
       </div>
     </ConversationProvider>
   );
