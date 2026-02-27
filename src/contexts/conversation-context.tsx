@@ -6,11 +6,18 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, type UIMessage, type TextUIPart } from "ai";
 import type { ContentType, Message, Note } from "@/lib/types";
-import { addNote as addNoteAction, removeNote as removeNoteAction, clearNotes as clearNotesAction } from "@/app/actions/notes";
+import {
+  addNote as addNoteAction,
+  removeNote as removeNoteAction,
+  clearNotes as clearNotesAction,
+} from "@/app/actions/notes";
 import { addMessage } from "@/app/actions/conversations";
 
 interface ConversationContextValue {
@@ -19,6 +26,8 @@ interface ConversationContextValue {
   notes: Note[];
   contentType: ContentType;
   input: string;
+  isLoading: boolean;
+  error: Error | undefined;
 
   setInput: (value: string) => void;
   setContentType: (type: ContentType) => void;
@@ -38,60 +47,101 @@ export function useConversation() {
   return ctx;
 }
 
+function getTextFromUIMessage(message: UIMessage): string {
+  return message.parts
+    .filter((p): p is TextUIPart => p.type === "text")
+    .map((p) => p.text)
+    .join("");
+}
+
 export function ConversationProvider({
   conversationId,
   initialData,
   children,
 }: {
   conversationId: string;
-  initialData?: { messages: Message[]; notes: Note[]; contentType: ContentType; title?: string };
+  initialData?: {
+    messages: Message[];
+    notes: Note[];
+    contentType: ContentType;
+    title?: string;
+  };
   children: ReactNode;
 }) {
-  const [messages, setMessages] = useState<Message[]>(initialData?.messages ?? []);
   const [notes, setNotes] = useState<Note[]>(initialData?.notes ?? []);
-  const [contentType, setContentType] = useState<ContentType>(initialData?.contentType ?? "Reply");
+  const [contentType, setContentType] = useState<ContentType>(
+    initialData?.contentType ?? "Reply"
+  );
   const [input, setInput] = useState("");
   const router = useRouter();
 
+  // Refs so the transport body closure always reads latest values
+  const notesRef = useRef(notes);
+  const contentTypeRef = useRef(contentType);
+  notesRef.current = notes;
+  contentTypeRef.current = contentType;
+
+  // Create transport once per conversation mount
+  const [transport] = useState(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: () => ({
+          conversationId,
+          contentType: contentTypeRef.current,
+          notes: notesRef.current.map((n) => n.content),
+        }),
+      })
+  );
+
+  const initialMessages: UIMessage[] = (initialData?.messages ?? []).map((m) => ({
+    id: m.id,
+    role: m.role as "user" | "assistant",
+    parts: [{ type: "text" as const, text: m.content }],
+    metadata: undefined,
+  }));
+
+  const { messages: aiMessages, sendMessage: aiSendMessage, status, error } = useChat({
+    transport,
+    messages: initialMessages,
+    onFinish: async ({ message }: { message: UIMessage }) => {
+      const text = getTextFromUIMessage(message);
+      if (text) {
+        await addMessage(conversationId, "assistant", text);
+      }
+    },
+  });
+
+  const isLoading = status === "submitted" || status === "streaming";
+
+  // Reset notes and contentType when conversation changes
   useEffect(() => {
-    const msgs = (initialData?.messages ?? []).map((m) => ({
-      ...m,
-      createdAt: m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt as string),
-    }));
     const nts = (initialData?.notes ?? []).map((n) => ({
       ...n,
-      createdAt: n.createdAt instanceof Date ? n.createdAt : new Date(n.createdAt as string),
+      createdAt:
+        n.createdAt instanceof Date ? n.createdAt : new Date(n.createdAt as string),
     }));
-    setMessages(msgs);
     setNotes(nts);
     setContentType(initialData?.contentType ?? "Reply");
   }, [conversationId, initialData]);
 
+  // Map AI SDK UIMessage[] to our Message type
+  const messages: Message[] = aiMessages.map((m) => ({
+    id: m.id,
+    role: m.role as "user" | "assistant",
+    content: getTextFromUIMessage(m),
+    createdAt: new Date(),
+  }));
+
   const sendMessage = useCallback(async () => {
     const text = input.trim();
-    if (!text) return;
-
-    const userMsg: Message = {
-      id: `temp-${Date.now()}`,
-      role: "user",
-      content: text,
-      createdAt: new Date(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    if (!text || isLoading) return;
     setInput("");
-
+    // Save user message to DB
     await addMessage(conversationId, "user", text);
-    await addMessage(conversationId, "assistant", "Assistant response will appear here — AI pipeline coming in Sprint 3.");
-
-    const assistantMsg: Message = {
-      id: `temp-${Date.now()}-a`,
-      role: "assistant",
-      content: "Assistant response will appear here — AI pipeline coming in Sprint 3.",
-      createdAt: new Date(),
-    };
-    setMessages((prev) => [...prev, assistantMsg]);
-    router.refresh();
-  }, [input, conversationId, router]);
+    // Send to AI (transport body closure provides notes + contentType)
+    aiSendMessage({ text });
+  }, [input, isLoading, conversationId, aiSendMessage]);
 
   const addNote = useCallback(
     async (content: string) => {
@@ -135,6 +185,8 @@ export function ConversationProvider({
         notes,
         contentType,
         input,
+        isLoading,
+        error,
         setInput,
         setContentType,
         sendMessage,

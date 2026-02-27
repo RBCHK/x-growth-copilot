@@ -121,3 +121,44 @@ export async function deleteConversation(id: string) {
   revalidatePath("/");
   revalidatePath(`/c/${id}`);
 }
+
+// Returns MODE letters (A–E) used in last N reply conversations, newest-first.
+// Used for anti-repeat rotation in the reply prompt.
+export async function getRecentUsedModes(excludeId?: string, limit = 5): Promise<string[]> {
+  const where = {
+    contentType: "REPLY" as const,
+    ...(excludeId ? { id: { not: excludeId } } : {}),
+  };
+  const convs = await prisma.conversation.findMany({
+    where,
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    include: { messages: { where: { role: "assistant" }, orderBy: { createdAt: "asc" }, take: 1 } },
+  });
+  const modes: string[] = [];
+  for (const c of convs) {
+    const firstMsg = c.messages[0]?.content ?? "";
+    const match = firstMsg.match(/\bMODE\s+([A-E])\b/i);
+    if (match) modes.push(match[1].toUpperCase());
+  }
+  return modes;
+}
+
+export async function markAsPosted(conversationId: string, finalText: string) {
+  const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
+  if (!conv) return;
+
+  // Auto-save to Voice Bank
+  const vbType = conv.contentType === "REPLY" ? "REPLY" : "POST";
+  await prisma.voiceBankEntry.create({
+    data: { content: finalText, type: vbType },
+  });
+
+  // Update conversation status to POSTED
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { status: "POSTED" },
+  });
+
+  revalidatePath("/");
+}

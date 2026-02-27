@@ -12,7 +12,7 @@ export async function getVoiceBankEntries(type?: "REPLY" | "POST") {
   return rows.map((r) => ({
     id: r.id,
     content: r.content,
-    type: r.type as "Reply" | "Post",
+    type: r.type === "REPLY" ? "Reply" : "Post" as "Reply" | "Post",
     topic: r.topic,
     createdAt: r.createdAt,
   }));

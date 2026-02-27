@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -69,7 +68,7 @@ function VoiceBankTab() {
   const filtered = entries.filter((e) => e.type === activeTab);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 flex-1 min-h-0">
       <div className="flex flex-col gap-2">
         <Textarea
           placeholder="Paste an example of your writing…"
@@ -119,7 +118,7 @@ function VoiceBankTab() {
         </TabsList>
       </Tabs>
 
-      <ScrollArea className="h-[300px]">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="flex flex-col gap-2 pr-3">
           {filtered.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
@@ -144,7 +143,7 @@ function VoiceBankTab() {
             ))
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
@@ -314,12 +313,12 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
   return (
     <Sheet>
       <SheetTrigger asChild>{children}</SheetTrigger>
-      <SheetContent side="left" className="w-[420px] sm:max-w-[420px]">
+      <SheetContent side="left" className="w-[420px] sm:max-w-[420px] overflow-hidden">
         <SheetHeader>
           <SheetTitle className="tracking-[-0.02em] font-medium">Settings</SheetTitle>
         </SheetHeader>
-        <div className="mt-4">
-          <Tabs defaultValue="voice-bank">
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
+          <Tabs defaultValue="voice-bank" className="flex-1 min-h-0">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="voice-bank" className="text-xs">
                 Voice
@@ -335,7 +334,7 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="voice-bank" className="mt-4">
+            <TabsContent value="voice-bank" className="mt-4 flex-1 min-h-0 flex flex-col">
               <VoiceBankTab />
             </TabsContent>
             <TabsContent value="strategy" className="mt-4">

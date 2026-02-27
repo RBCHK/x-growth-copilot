@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useRouter } from "next/navigation";
 import { useConversation } from "@/contexts/conversation-context";
 import { addToQueue } from "@/app/actions/schedule";
-import { createConversation } from "@/app/actions/conversations";
+import { createConversation, markAsPosted } from "@/app/actions/conversations";
 import { NOTES_PANEL_OPEN } from "@/components/notes-sidebar-container";
 
 const POPUP_HEIGHT = 48;
@@ -107,7 +107,10 @@ export function TextSelectionPopup() {
     hidePopup();
 
     try {
-      const result = await addToQueue(selectedText, conversationId);
+      const [result] = await Promise.all([
+        addToQueue(selectedText, conversationId),
+        markAsPosted(conversationId, selectedText),
+      ]);
       if (result) {
         const date = result.date.toLocaleDateString("en-US", {
           weekday: "short",
@@ -117,6 +120,7 @@ export function TextSelectionPopup() {
         });
         toast.success(`Copied + scheduled for ${date}, ${result.timeSlot}`);
         window.dispatchEvent(new Event("slots-updated"));
+        router.push("/");
       } else {
         toast.error("No empty slots available");
       }
