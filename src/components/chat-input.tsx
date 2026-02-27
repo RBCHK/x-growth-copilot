@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useLayoutEffect, type KeyboardEvent } from "react";
+import { useRef, useCallback, useLayoutEffect, type KeyboardEvent } from "react";
 import { SendHorizontal, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,20 +32,14 @@ export function ChatInput({
   disabled,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [textareaHeight, setTextareaHeight] = useState(MIN_HEIGHT_PX);
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
-    if (!value.trim()) {
-      setTextareaHeight(MIN_HEIGHT_PX);
-      return;
-    }
-    el.style.height = `${MAX_HEIGHT_PX + 1}px`;
+    el.style.height = "auto";
     const h = Math.min(Math.max(el.scrollHeight, MIN_HEIGHT_PX), MAX_HEIGHT_PX);
     el.style.height = `${h}px`;
-    setTextareaHeight(h);
-  }, [value]);
+  }, []);
 
   useLayoutEffect(() => {
     adjustHeight();
@@ -65,7 +59,7 @@ export function ChatInput({
   return (
     <div className="bg-background px-4 pt-4 pb-16">
       <div className="mx-auto w-full max-w-2xl">
-        <div className="rounded-xl border border-border bg-card transition-colors duration-150 focus-within:border-white/[0.08]">
+        <div className="rounded-xl border border-border bg-card transition-colors duration-150 focus-within:border-white/8">
           <textarea
             ref={textareaRef}
             value={value}
@@ -74,8 +68,7 @@ export function ChatInput({
             placeholder="Paste a tweet URL or type your message…"
             rows={1}
             disabled={disabled}
-            style={{ height: textareaHeight }}
-            className="min-h-[72px] w-full max-h-[200px] resize-none border-0 bg-transparent px-4 pt-4 pb-2 text-left text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 disabled:opacity-50 transition-[height] duration-150 ease-out"
+            className="min-h-[72px] w-full max-h-[200px] resize-none border-0 bg-transparent px-4 pt-4 pb-2 text-left text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 disabled:opacity-50"
           />
           <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-1">
             <DropdownMenu>
@@ -83,7 +76,7 @@ export function ChatInput({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 shrink-0 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                  className="h-8 shrink-0 gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-white/6 hover:text-foreground"
                 >
                   {contentType}
                   <ChevronDown className="h-3 w-3 opacity-50" />
