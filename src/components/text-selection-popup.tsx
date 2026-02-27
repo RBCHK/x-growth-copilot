@@ -5,8 +5,10 @@ import { StickyNote, FilePlus, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useRouter } from "next/navigation";
 import { useConversation } from "@/contexts/conversation-context";
-import { MOCK_SLOTS } from "@/lib/mock-data";
+import { addToQueue } from "@/app/actions/schedule";
+import { createConversation } from "@/app/actions/conversations";
 
 interface Position {
   x: number;
@@ -17,7 +19,8 @@ export function TextSelectionPopup() {
   const [position, setPosition] = useState<Position | null>(null);
   const [selectedText, setSelectedText] = useState("");
   const popupRef = useRef<HTMLDivElement>(null);
-  const { addNote } = useConversation();
+  const router = useRouter();
+  const { addNote, conversationId } = useConversation();
 
   const hidePopup = useCallback(() => {
     setPosition(null);
@@ -74,31 +77,42 @@ export function TextSelectionPopup() {
     toast.success("Added to Notes");
   }
 
-  function handleNewDraft() {
+  async function handleNewDraft() {
     window.getSelection()?.removeAllRanges();
     hidePopup();
-    // Sprint 2: will create a real draft in DB with the note pre-attached
-    toast.success("New draft created with selected text", {
-      description: "Open it from the Drafts sidebar",
-    });
+    try {
+      const id = await createConversation({
+        title: "New draft",
+        initialContent: selectedText,
+      });
+      router.push(`/c/${id}`);
+      toast.success("New draft created with selected text");
+    } catch {
+      toast.error("Failed to create draft");
+    }
   }
 
-  function handleAddToQueue() {
-    const emptySlot = MOCK_SLOTS.find((s) => s.status === "empty");
+  async function handleAddToQueue() {
     navigator.clipboard.writeText(selectedText);
     window.getSelection()?.removeAllRanges();
     hidePopup();
 
-    if (emptySlot) {
-      const date = emptySlot.date.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        timeZone: "America/Los_Angeles",
-      });
-      toast.success(`Copied + scheduled for ${date}, ${emptySlot.timeSlot}`);
-    } else {
-      toast.error("No empty slots available");
+    try {
+      const result = await addToQueue(selectedText, conversationId);
+      if (result) {
+        const date = result.date.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          timeZone: "America/Los_Angeles",
+        });
+        toast.success(`Copied + scheduled for ${date}, ${result.timeSlot}`);
+        window.dispatchEvent(new Event("slots-updated"));
+      } else {
+        toast.error("No empty slots available");
+      }
+    } catch {
+      toast.error("Failed to add to queue");
     }
   }
 

@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ContentType {
+  REPLY
+  POST
+  THREAD
+  ARTICLE
+}
+
+enum ConversationStatus {
+  DRAFT
+  SCHEDULED
+  POSTED
+}
+
+enum SlotType {
+  POST
+  REPLY
+}
+
+enum SlotStatus {
+  EMPTY
+  FILLED
+  POSTED
+}
+
+enum VoiceBankType {
+  REPLY
+  POST
+}
+
+model Conversation {
+  id                String              @id @default(cuid())
+  title             String
+  contentType       ContentType
+  status            ConversationStatus  @default(DRAFT)
+  originalPostText  String?
+  originalPostUrl   String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  messages Message[]
+  notes    Note[]
+  slots    ScheduledSlot[]
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // "user" | "assistant"
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id             String   @id @default(cuid())
+  conversationId String
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model VoiceBankEntry {
+  id        String         @id @default(cuid())
+  content   String
+  type      VoiceBankType
+  topic     String?
+  createdAt DateTime       @default(now())
+}
+
+model ScheduledSlot {
+  id             String     @id @default(cuid())
+  date           DateTime
+  timeSlot       String
+  slotType       SlotType
+  status         SlotStatus @default(EMPTY)
+  content        String?
+  conversationId String?
+
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+}
+
+model StrategyConfig {
+  id                 String   @id @default(cuid())
+  postsPerDay        Int      @default(2)
+  replySessionsPerDay Int      @default(4)
+  timeSlots          Json     // e.g. ["9:00 AM", "12:00 PM", "3:00 PM", "6:00 PM"]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

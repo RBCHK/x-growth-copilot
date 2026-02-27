@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, Eye, EyeOff } from "lucide-react";
 import {
   Sheet,
@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { getVoiceBankEntries, addVoiceBankEntry, removeVoiceBankEntry } from "@/app/actions/voice-bank";
+import { getStrategyConfig, upsertStrategyConfig } from "@/app/actions/schedule";
 
 interface VoiceBankEntry {
   id: string;
@@ -31,59 +33,37 @@ interface VoiceBankEntry {
   type: "Reply" | "Post";
 }
 
-const MOCK_VOICE_BANK: VoiceBankEntry[] = [
-  {
-    id: "v1",
-    content:
-      "that's not a person reading release notes. that's an automated system scraping changelogs to generate LinkedIn content",
-    type: "Reply",
-  },
-  {
-    id: "v2",
-    content:
-      "the bottleneck was never finding issues. it's fixing them fast enough before your users find workarounds and stop caring",
-    type: "Reply",
-  },
-  {
-    id: "v3",
-    content:
-      "every 'AI-powered' startup I see is just a GPT wrapper with a landing page and a prayer",
-    type: "Reply",
-  },
-  {
-    id: "v4",
-    content:
-      "I spent 3 months building a feature nobody asked for. The feature that grew revenue 40% took 2 days. Lesson: talk to users before writing code.",
-    type: "Post",
-  },
-  {
-    id: "v5",
-    content:
-      "The real competitive advantage in mobile apps isn't the tech. It's understanding that 80% of your revenue comes from 5% of users who found you through a keyword you never optimized for.",
-    type: "Post",
-  },
-];
-
 function VoiceBankTab() {
-  const [entries, setEntries] = useState<VoiceBankEntry[]>(MOCK_VOICE_BANK);
+  const [entries, setEntries] = useState<VoiceBankEntry[]>([]);
   const [newContent, setNewContent] = useState("");
   const [newType, setNewType] = useState<"Reply" | "Post">("Reply");
   const [activeTab, setActiveTab] = useState<"Reply" | "Post">("Reply");
 
-  function handleAdd() {
+  useEffect(() => {
+    getVoiceBankEntries().then(setEntries).catch(() => setEntries([]));
+  }, []);
+
+  async function handleAdd() {
     if (!newContent.trim()) return;
-    const entry: VoiceBankEntry = {
-      id: `v-${Date.now()}`,
-      content: newContent.trim(),
-      type: newType,
-    };
-    setEntries((prev) => [entry, ...prev]);
-    setNewContent("");
-    toast.success("Added to Voice Bank");
+    try {
+      await addVoiceBankEntry(newContent.trim(), newType === "Reply" ? "REPLY" : "POST");
+      const list = await getVoiceBankEntries();
+      setEntries(list);
+      setNewContent("");
+      toast.success("Added to Voice Bank");
+    } catch {
+      toast.error("Failed to add");
+    }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     setEntries((prev) => prev.filter((e) => e.id !== id));
+    try {
+      await removeVoiceBankEntry(id);
+    } catch {
+      toast.error("Failed to delete");
+      getVoiceBankEntries().then(setEntries);
+    }
   }
 
   const filtered = entries.filter((e) => e.type === activeTab);
@@ -174,8 +154,28 @@ function StrategyConfigTab() {
   const [replySessionsPerDay, setReplySessionsPerDay] = useState("4");
   const [timeSlots, setTimeSlots] = useState("9:00 AM, 12:00 PM, 3:00 PM, 6:00 PM");
 
-  function handleSave() {
-    toast.success("Strategy config saved");
+  useEffect(() => {
+    getStrategyConfig().then((c) => {
+      if (c) {
+        setPostsPerDay(String(c.postsPerDay));
+        setReplySessionsPerDay(String(c.replySessionsPerDay));
+        setTimeSlots(c.timeSlots.join(", "));
+      }
+    });
+  }, []);
+
+  async function handleSave() {
+    try {
+      const slots = timeSlots.split(",").map((s) => s.trim()).filter(Boolean);
+      await upsertStrategyConfig({
+        postsPerDay: parseInt(postsPerDay, 10) || 2,
+        replySessionsPerDay: parseInt(replySessionsPerDay, 10) || 4,
+        timeSlots: slots.length ? slots : ["9:00 AM", "12:00 PM", "3:00 PM", "6:00 PM"],
+      });
+      toast.success("Strategy config saved");
+    } catch {
+      toast.error("Failed to save");
+    }
   }
 
   return (

@@ -1,19 +1,32 @@
-"use client";
-
-import { use } from "react";
+import { redirect } from "next/navigation";
 import { ChatArea } from "@/components/chat-area";
 import { NotesSidebar } from "@/components/notes-sidebar";
 import { ConversationProvider } from "@/contexts/conversation-context";
+import { createConversation, getConversation } from "@/app/actions/conversations";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-export default function ConversationPage({ params }: Props) {
-  const { id } = use(params);
+export default async function ConversationPage({ params }: Props) {
+  const { id } = await params;
+
+  let data = await getConversation(id);
+  if (!data) {
+    const newId = await createConversation({ title: "New draft" });
+    redirect(`/c/${newId}`);
+  }
 
   return (
-    <ConversationProvider conversationId={id}>
+    <ConversationProvider
+      conversationId={id}
+      initialData={{
+        messages: data.messages,
+        notes: data.notes,
+        contentType: data.contentType,
+        title: data.title,
+      }}
+    >
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden">
           <ChatArea />

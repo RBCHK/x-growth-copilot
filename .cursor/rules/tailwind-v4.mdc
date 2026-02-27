@@ -1,0 +1,24 @@
+---
+description: Tailwind v4 — breaking changes и рекомендации документации
+globs: "**/*.tsx,**/*.css,**/globals.css,**/tailwind*.{ts,js}"
+alwaysApply: false
+---
+
+# Tailwind v4
+
+Проект использует **Tailwind CSS v4** (не v3). При работе со стилями учитывать отличия.
+
+## Breaking changes (v3 → v4)
+
+- **cursor-pointer** — больше не применяется автоматически к `button` и `[role="button"]`. Класс `cursor-pointer` в компонентах может не срабатывать. Решение: глобальное правило в `globals.css`:
+  ```css
+  @layer base {
+    button:not(:disabled),
+    [role="button"]:not(:disabled) { cursor: pointer; }
+  }
+  ```
+
+## Рекомендации
+
+- При сомнениях по поведению утилит — проверять [Tailwind v4 docs](https://tailwindcss.com/docs)
+- Миграция v3→v4: https://tailwindcss.com/docs/upgrade-guide
