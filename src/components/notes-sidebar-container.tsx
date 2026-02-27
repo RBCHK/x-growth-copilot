@@ -19,6 +19,7 @@ export function NotesSidebarContainer() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [shouldRender, setShouldRender] = useState(notes.length > 0);
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_BREAKPOINT);
@@ -30,6 +31,7 @@ export function NotesSidebarContainer() {
 
   useEffect(() => {
     if (notes.length > 0) {
+      setShouldRender(true);
       setIsOpen(true);
       // Двойной rAF: даём aside отрендериться с width=0, затем CSS transition анимирует до width=80
       const id = requestAnimationFrame(() => {
@@ -37,7 +39,10 @@ export function NotesSidebarContainer() {
       });
       return () => cancelAnimationFrame(id);
     }
+    // Сначала запускаем анимацию закрытия, потом размонтируем
     setMounted(false);
+    const timer = setTimeout(() => setShouldRender(false), SIDEBAR_ANIMATION_MS);
+    return () => clearTimeout(timer);
   }, [notes.length]);
 
   useEffect(() => {
@@ -46,11 +51,11 @@ export function NotesSidebarContainer() {
     return () => window.removeEventListener(NOTES_PANEL_OPEN, handler);
   }, []);
 
-  const showPanel = notes.length > 0 && (isOpen || !isMobile) && mounted;
+  const showPanel = shouldRender && (isOpen || !isMobile) && mounted;
   const showBackdrop = showPanel && isMobile;
   const showFab = notes.length > 0 && isMobile && !isOpen;
 
-  if (notes.length === 0) return null;
+  if (!shouldRender) return null;
 
   return (
     <>

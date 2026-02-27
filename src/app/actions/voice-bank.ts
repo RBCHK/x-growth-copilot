@@ -3,11 +3,12 @@
 import { prisma } from "@/lib/prisma";
 import type { VoiceBankType } from "@/generated/prisma";
 
-export async function getVoiceBankEntries(type?: "REPLY" | "POST") {
+export async function getVoiceBankEntries(type?: "REPLY" | "POST", limit?: number) {
   const where = type ? { type: type as VoiceBankType } : {};
   const rows = await prisma.voiceBankEntry.findMany({
     where,
     orderBy: { createdAt: "desc" },
+    ...(limit ? { take: limit } : {}),
   });
   return rows.map((r) => ({
     id: r.id,

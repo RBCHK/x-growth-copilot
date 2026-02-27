@@ -172,9 +172,11 @@ const POSTS: { content: string; topic: string }[] = [
 ];
 
 async function main() {
-  // Clear existing entries to avoid duplicates on re-seed
-  const deleted = await prisma.voiceBankEntry.deleteMany({});
-  console.log(`Cleared ${deleted.count} existing entries.`);
+  const existing = await prisma.voiceBankEntry.count();
+  if (existing > 0) {
+    console.log(`Voice Bank already has ${existing} entries. Skipping seed.`);
+    return;
+  }
 
   console.log(`Seeding ${REPLIES.length} reply examples...`);
   for (const reply of REPLIES) {

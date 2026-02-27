@@ -119,7 +119,6 @@ export async function addMessage(conversationId: string, role: "user" | "assista
 export async function deleteConversation(id: string) {
   await prisma.conversation.delete({ where: { id } });
   revalidatePath("/");
-  revalidatePath(`/c/${id}`);
 }
 
 // Returns MODE letters (A–E) used in last N reply conversations, newest-first.
@@ -144,21 +143,10 @@ export async function getRecentUsedModes(excludeId?: string, limit = 5): Promise
   return modes;
 }
 
-export async function markAsPosted(conversationId: string, finalText: string) {
-  const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
-  if (!conv) return;
-
-  // Auto-save to Voice Bank
-  const vbType = conv.contentType === "REPLY" ? "REPLY" : "POST";
-  await prisma.voiceBankEntry.create({
-    data: { content: finalText, type: vbType },
-  });
-
-  // Update conversation status to POSTED
+export async function markAsPosted(conversationId: string) {
   await prisma.conversation.update({
     where: { id: conversationId },
     data: { status: "POSTED" },
   });
-
   revalidatePath("/");
 }

@@ -2,24 +2,27 @@ import { redirect } from "next/navigation";
 import { ChatArea } from "@/components/chat-area";
 import { NotesSidebarContainer } from "@/components/notes-sidebar-container";
 import { ConversationProvider } from "@/contexts/conversation-context";
-import { createConversation, getConversation } from "@/app/actions/conversations";
+import { getConversation } from "@/app/actions/conversations";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ msg?: string }>;
 }
 
-export default async function ConversationPage({ params }: Props) {
+export default async function ConversationPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { msg } = await searchParams;
+  const initialMessage = msg ? decodeURIComponent(msg) : undefined;
 
   let data = await getConversation(id);
   if (!data) {
-    const newId = await createConversation({ title: "New draft" });
-    redirect(`/c/${newId}`);
+    redirect("/");
   }
 
   return (
     <ConversationProvider
       conversationId={id}
+      initialMessage={initialMessage}
       initialData={{
         messages: data.messages,
         notes: data.notes,

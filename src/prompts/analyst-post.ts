@@ -103,5 +103,11 @@ ${antiPatternsBlock}
 - [ ] Is there one specific, concrete detail that proves you know this topic?
 - [ ] Zero AI-tells (read it out loud — does it sound human?)
 - [ ] Does it work without knowing the author's context?
-- [ ] Is there a reason to share it? (Relatable / Surprising / Useful)`.trim();
+- [ ] Is there a reason to share it? (Relatable / Surprising / Useful)
+
+---
+
+## Language Rules
+- Conduct ALL dialogue in Russian: analysis, angles, sparring, checklist comments.
+- The final post/thread/article inside the code block must always be in English.`.trim();
 }

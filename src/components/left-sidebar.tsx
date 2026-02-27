@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SettingsSheet } from "@/components/settings-sheet";
-import { getConversations, createConversation, deleteConversation } from "@/app/actions/conversations";
+import { getConversations, deleteConversation } from "@/app/actions/conversations";
 import { getScheduledSlots, ensureSlotsForWeek } from "@/app/actions/schedule";
 import type { ContentType, Draft, ScheduledSlot, SlotStatus } from "@/lib/types";
 
@@ -193,13 +193,8 @@ export function LeftSidebar() {
     getScheduledSlots().then(setSlots).catch(() => {});
   }
 
-  async function handleNewDraft() {
-    try {
-      const id = await createConversation({ title: "New draft" });
-      router.push(`/c/${id}`);
-    } catch {
-      router.push(`/c/d-${Date.now()}`);
-    }
+  function handleNewDraft() {
+    router.push("/");
   }
 
   const groupedSlots = groupSlotsByDate(slots);

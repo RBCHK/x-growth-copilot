@@ -10,7 +10,7 @@ export default function AppLayout({
     <div className="flex h-screen overflow-hidden">
       <MobileSidebar />
 
-      <aside className="hidden w-[22.95rem] shrink-0 border-r border-border bg-[var(--sidebar)] md:flex md:flex-col">
+      <aside className="hidden w-[420px] shrink-0 border-r border-border bg-sidebar md:flex md:flex-col">
         <LeftSidebar />
       </aside>
 

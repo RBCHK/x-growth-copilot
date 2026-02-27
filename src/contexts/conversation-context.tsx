@@ -57,6 +57,7 @@ function getTextFromUIMessage(message: UIMessage): string {
 export function ConversationProvider({
   conversationId,
   initialData,
+  initialMessage,
   children,
 }: {
   conversationId: string;
@@ -66,6 +67,7 @@ export function ConversationProvider({
     contentType: ContentType;
     title?: string;
   };
+  initialMessage?: string;
   children: ReactNode;
 }) {
   const [notes, setNotes] = useState<Note[]>(initialData?.notes ?? []);
@@ -132,6 +134,17 @@ export function ConversationProvider({
     content: getTextFromUIMessage(m),
     createdAt: new Date(),
   }));
+
+  const hasSentInitial = useRef(false);
+  useEffect(() => {
+    if (!initialMessage || hasSentInitial.current) return;
+    hasSentInitial.current = true;
+    const text = initialMessage.trim();
+    if (!text) return;
+    addMessage(conversationId, "user", text).then(() => {
+      aiSendMessage({ text });
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();

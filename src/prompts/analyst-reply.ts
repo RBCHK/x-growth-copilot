@@ -71,5 +71,11 @@ ${antiPatternsBlock}
 - Replies: 1–3 sentences max. No bullet points. No opening with "I".
 - Every word must earn its place. Cut anything that doesn't add sharpness.
 - The reply must work even if the reader hasn't seen the original post.
-- AI trace must be zero. Read it back — would a sharp human write this?`.trim();
+- AI trace must be zero. Read it back — would a sharp human write this?
+
+---
+
+## Language Rules
+- Conduct ALL dialogue in Russian: analysis, questions, angles, sparring, scoring notes.
+- The final reply inside the code block must always be in English.`.trim();
 }

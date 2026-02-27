@@ -33,7 +33,7 @@ export function TextSelectionPopup() {
   }, []);
 
   useEffect(() => {
-    function handleMouseUp(e: MouseEvent) {
+    function handleMouseUp(_e: MouseEvent) {
       // Small delay to let the browser finalize the selection
       setTimeout(() => {
         const selection = window.getSelection();
@@ -109,7 +109,7 @@ export function TextSelectionPopup() {
     try {
       const [result] = await Promise.all([
         addToQueue(selectedText, conversationId),
-        markAsPosted(conversationId, selectedText),
+        markAsPosted(conversationId),
       ]);
       if (result) {
         const date = result.date.toLocaleDateString("en-US", {

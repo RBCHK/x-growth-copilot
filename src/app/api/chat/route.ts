@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   // Load voice bank and recent modes in parallel
   const [voiceBankEntries, recentModes] = await Promise.all([
-    getVoiceBankEntries(contentType === "Reply" ? "REPLY" : "POST"),
+    getVoiceBankEntries(contentType === "Reply" ? "REPLY" : "POST", 25),
     contentType === "Reply" ? getRecentUsedModes(conversationId, 5) : Promise.resolve([]),
   ]);
   const voiceBank = voiceBankEntries.map((e) => e.content);
