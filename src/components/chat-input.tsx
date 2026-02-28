@@ -52,8 +52,8 @@ export function ChatInput({
   }
 
   return (
-    <div className="bg-background px-4 pt-4 pb-12">
-      <div className="mx-auto w-full max-w-2xl">
+    <div className="px-4 pt-4 pb-4">
+      <div className="mx-auto w-full max-w-chat">
         <div className="rounded-xl border border-border bg-card transition-colors duration-150 focus-within:border-white/8">
           <textarea
             ref={textareaRef}

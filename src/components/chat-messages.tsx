@@ -93,7 +93,7 @@ export function ChatMessages() {
 
   return (
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
-      <div data-chat-messages className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pt-6 pb-6">
+      <div data-chat-messages className="mx-auto flex w-full max-w-chat flex-col gap-4 px-4 pt-6 pb-6">
         {messages.map((msg) => (
           <ChatBubble key={msg.id} message={msg} />
         ))}
