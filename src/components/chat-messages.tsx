@@ -8,43 +8,81 @@ interface ChatMessagesProps {
   messages: Message[];
 }
 
+const NEAR_BOTTOM = 64; // px
+const SCROLL_TOP_OFFSET = 24; // px = pt-6
+
 export function ChatMessages({ messages }: ChatMessagesProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const shouldAutoScrollRef = useRef(true);
-  const prevLengthRef = useRef(messages.length);
+  const spacerRef = useRef<HTMLDivElement>(null);
+  const stickyRef = useRef(true);
 
-  // Отслеживаем, прокрутил ли пользователь вверх
+  const userCount = messages.filter((m) => m.role === "user").length;
+  const prevUserCount = useRef(userCount);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = el;
-      shouldAutoScrollRef.current = scrollHeight - scrollTop - clientHeight < 80;
+    const spacerHeight = () => spacerRef.current?.offsetHeight ?? 0;
+
+    // Расстояние от конца контента (без spacer) до нижнего края viewport
+    const distFromContentBottom = () =>
+      el.scrollHeight - spacerHeight() - el.scrollTop - el.clientHeight;
+
+    const onScroll = () => {
+      stickyRef.current = distFromContentBottom() < NEAR_BOTTOM;
     };
 
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, []);
+    // Wheel вверх — сразу отключаем sticky (без ожидания scroll-события)
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0) stickyRef.current = false;
+    };
 
-  const lastContent = messages[messages.length - 1]?.content ?? "";
+    el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("wheel", onWheel, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
+    const spacer = spacerRef.current;
     if (!el) return;
 
-    const isNewMessage = messages.length !== prevLengthRef.current;
-    prevLengthRef.current = messages.length;
+    if (userCount > prevUserCount.current) {
+      prevUserCount.current = userCount;
+      stickyRef.current = true;
 
-    if (isNewMessage) {
-      // Новое сообщение — плавный скролл и сбрасываем флаг
-      shouldAutoScrollRef.current = true;
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    } else if (shouldAutoScrollRef.current) {
-      // Стриминг — мгновенный скролл, если не прокрутили вверх
-      el.scrollTop = el.scrollHeight;
+      // Spacer создаёт место для скролла — без него браузер не может
+      // поднять сообщение к верху, если контента меньше чем высота экрана
+      if (spacer) spacer.style.height = `${el.clientHeight}px`;
+
+      requestAnimationFrame(() => {
+        const userMsgs = el.querySelectorAll('[data-role="user"]');
+        const lastMsg = userMsgs[userMsgs.length - 1] as HTMLElement | undefined;
+        if (lastMsg) {
+          const offset =
+            lastMsg.getBoundingClientRect().top -
+            el.getBoundingClientRect().top;
+          el.scrollTop = el.scrollTop + offset - SCROLL_TOP_OFFSET;
+        }
+      });
+      return;
     }
-  }, [messages.length, lastContent]);
+
+    if (stickyRef.current) {
+      // Следим за ростом контента: скроллим вниз только если контент
+      // вырос за нижний край viewport — не прыгаем к концу
+      const spacerH = spacer?.offsetHeight ?? 0;
+      const contentBottom = el.scrollHeight - spacerH;
+      const viewportBottom = el.scrollTop + el.clientHeight;
+      if (contentBottom > viewportBottom) {
+        el.scrollTop = contentBottom - el.clientHeight;
+      }
+    }
+  }, [messages, userCount]);
 
   if (messages.length === 0) {
     return (
@@ -58,11 +96,11 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
 
   return (
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
-      <div data-chat-messages className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pt-6">
+      <div data-chat-messages className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
         {messages.map((msg) => (
           <ChatBubble key={msg.id} message={msg} />
         ))}
-        <div className="h-56 shrink-0" />
+        <div ref={spacerRef} className="shrink-0" />
       </div>
     </div>
   );

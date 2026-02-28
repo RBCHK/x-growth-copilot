@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useRouter } from "next/navigation";
 import { useConversation } from "@/contexts/conversation-context";
 import { addToQueue } from "@/app/actions/schedule";
-import { createConversation, markAsPosted } from "@/app/actions/conversations";
+import { createConversation } from "@/app/actions/conversations";
 import { NOTES_PANEL_OPEN } from "@/components/notes-sidebar-container";
 
 const POPUP_HEIGHT = 48;
@@ -25,7 +25,7 @@ export function TextSelectionPopup() {
   const [selectedText, setSelectedText] = useState("");
   const popupRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { addNote, conversationId } = useConversation();
+  const { addNote, conversationId, contentType } = useConversation();
 
   const hidePopup = useCallback(() => {
     setPosition(null);
@@ -90,12 +90,12 @@ export function TextSelectionPopup() {
     window.getSelection()?.removeAllRanges();
     hidePopup();
     try {
-      const id = await createConversation({
-        title: "New draft",
+      await createConversation({
+        title: selectedText.slice(0, 200),
         initialContent: selectedText,
       });
-      router.push(`/c/${id}`);
-      toast.success("New draft created with selected text");
+      window.dispatchEvent(new Event("drafts-updated"));
+      toast.success("Draft created");
     } catch {
       toast.error("Failed to create draft");
     }
@@ -107,10 +107,8 @@ export function TextSelectionPopup() {
     hidePopup();
 
     try {
-      const [result] = await Promise.all([
-        addToQueue(selectedText, conversationId),
-        markAsPosted(conversationId),
-      ]);
+      const slotType = contentType === "Reply" ? "REPLY" as const : "POST" as const;
+      const result = await addToQueue(selectedText, conversationId, slotType);
       if (result) {
         const date = result.date.toLocaleDateString("en-US", {
           weekday: "short",

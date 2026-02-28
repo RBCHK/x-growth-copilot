@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Plus, Settings, MessageSquare, FileText, AlignLeft, BookOpen, Clock, CheckCircle2, Circle, Trash2 } from "lucide-react";
+import { Settings, Clock, CheckCircle2, Circle, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,16 +11,11 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SettingsSheet } from "@/components/settings-sheet";
-import { getConversations, deleteConversation } from "@/app/actions/conversations";
+import { ContentTypeDropdown } from "@/components/content-type-dropdown";
+import { SendMessageButton } from "@/components/send-message-button";
+import { getConversations, deleteConversation, updateConversation } from "@/app/actions/conversations";
 import { getScheduledSlots, ensureSlotsForWeek } from "@/app/actions/schedule";
 import type { ContentType, Draft, ScheduledSlot, SlotStatus } from "@/lib/types";
-
-const contentTypeIcon: Record<ContentType, React.ReactNode> = {
-  Reply: <MessageSquare className="h-3.5 w-3.5" />,
-  Post: <FileText className="h-3.5 w-3.5" />,
-  Thread: <AlignLeft className="h-3.5 w-3.5" />,
-  Article: <BookOpen className="h-3.5 w-3.5" />,
-};
 
 function formatRelativeDate(date: Date): string {
   const now = new Date();
@@ -81,10 +76,12 @@ function DraftItem({
   draft,
   isActive,
   onDelete,
+  onContentTypeChange,
 }: {
   draft: Draft;
   isActive: boolean;
   onDelete: (id: string) => void;
+  onContentTypeChange: (id: string, contentType: ContentType) => void;
 }) {
   const router = useRouter();
 
@@ -97,30 +94,42 @@ function DraftItem({
   return (
     <div
       className={cn(
-        "group relative flex w-full flex-col gap-2 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-accent",
-        isActive && "bg-accent",
+        "group relative flex w-full flex-col gap-2 rounded-lg px-3 py-2.5 text-left transition-colors duration-150",
+        isActive ? "bg-accent" : "hover:bg-muted/50",
       )}
     >
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => router.push(`/c/${draft.id}`)}
-        className="flex flex-1 flex-col gap-2 text-left cursor-pointer"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            router.push(`/c/${draft.id}`);
+          }
+        }}
+        className="flex flex-1 flex-col gap-4 text-left cursor-pointer"
       >
-        <span className="line-clamp-1 text-sm font-medium pr-8">{draft.title}</span>
+        <span className="line-clamp-2 text-sm font-medium pr-8 leading-snug">{draft.title}</span>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="gap-1 text-xs font-normal">
-            {contentTypeIcon[draft.contentType]}
-            {draft.contentType}
-          </Badge>
-          {draft.status === "packaged" && (
-            <Badge variant="outline" className="text-xs font-normal text-blue-400 border-blue-500/30">
-              Packaged
-            </Badge>
-          )}
-          <span className="ml-auto text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {formatRelativeDate(draft.updatedAt)}
           </span>
+          <div className="ml-auto flex items-center gap-5" onClick={(e) => e.stopPropagation()}>
+            <ContentTypeDropdown
+              variant="badge"
+              value={draft.contentType}
+              onValueChange={(type) => onContentTypeChange(draft.id, type)}
+            />
+            <SendMessageButton size="sm" />
+            {draft.status === "packaged" && (
+              <Badge variant="outline" className="text-xs font-normal text-blue-400 border-blue-500/30">
+                Packaged
+              </Badge>
+            )}
+          </div>
         </div>
-      </button>
+      </div>
       <Button
         variant="ghost"
         size="icon"
@@ -189,6 +198,12 @@ export function LeftSidebar() {
     return () => window.removeEventListener("slots-updated", handler);
   }, []);
 
+  useEffect(() => {
+    const handler = () => getConversations().then(setDrafts).catch(() => {});
+    window.addEventListener("drafts-updated", handler);
+    return () => window.removeEventListener("drafts-updated", handler);
+  }, []);
+
   function refreshSlots() {
     getScheduledSlots().then(setSlots).catch(() => {});
   }
@@ -203,8 +218,8 @@ export function LeftSidebar() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 py-3">
         <h2 className="text-sm font-medium tracking-[-0.02em]">x-growth</h2>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleNewDraft}>
-          <Plus className="h-4 w-4" />
+        <Button variant="ghost" size="sm" className="h-7 text-xs font-medium" onClick={handleNewDraft}>
+          New chat
         </Button>
       </div>
 
@@ -235,6 +250,18 @@ export function LeftSidebar() {
                       toast.success("Draft deleted");
                     } catch {
                       toast.error("Failed to delete draft");
+                    }
+                  }}
+                  onContentTypeChange={async (id, contentType) => {
+                    try {
+                      await updateConversation(id, { contentType });
+                      setDrafts((prev) =>
+                        prev.map((d) => (d.id === id ? { ...d, contentType } : d))
+                      );
+                      window.dispatchEvent(new Event("drafts-updated"));
+                      toast.success("Type updated");
+                    } catch {
+                      toast.error("Failed to update type");
                     }
                   }}
                 />
