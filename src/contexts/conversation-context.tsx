@@ -138,6 +138,8 @@ export function ConversationProvider({
   const hasSentInitial = useRef(false);
   useEffect(() => {
     if (!initialMessage || hasSentInitial.current) return;
+    // Skip if conversation already has messages (e.g. page reload)
+    if (initialData?.messages && initialData.messages.length > 0) return;
     hasSentInitial.current = true;
     const text = initialMessage.trim();
     if (!text) return;

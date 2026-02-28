@@ -6,12 +6,13 @@ import type { Message } from "@/lib/types";
 
 interface ChatMessagesProps {
   messages: Message[];
+  inputHeight: number;
 }
 
 const NEAR_BOTTOM = 64; // px
 const SCROLL_TOP_OFFSET = 24; // px = pt-6
 
-export function ChatMessages({ messages }: ChatMessagesProps) {
+export function ChatMessages({ messages, inputHeight }: ChatMessagesProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const spacerRef = useRef<HTMLDivElement>(null);
   const stickyRef = useRef(true);
@@ -96,7 +97,7 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
 
   return (
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
-      <div data-chat-messages className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
+      <div data-chat-messages className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pt-6" style={{ paddingBottom: inputHeight + 24 }}>
         {messages.map((msg) => (
           <ChatBubble key={msg.id} message={msg} />
         ))}
