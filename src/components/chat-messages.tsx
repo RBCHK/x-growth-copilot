@@ -92,13 +92,19 @@ export function ChatMessages() {
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
-      <div data-chat-messages className="mx-auto flex w-full max-w-chat flex-col gap-4 px-4 pt-6 pb-6">
-        {messages.map((msg) => (
-          <ChatBubble key={msg.id} message={msg} />
-        ))}
-        <div ref={spacerRef} className="shrink-0" />
+    <div className="relative flex-1 min-h-0 overflow-hidden">
+      <div ref={scrollRef} className="absolute inset-0 overflow-y-auto">
+        <div data-chat-messages className="mx-auto flex w-full max-w-chat flex-col gap-4 px-4 pt-6 pb-6">
+          {messages.map((msg) => (
+            <ChatBubble key={msg.id} message={msg} />
+          ))}
+          <div ref={spacerRef} className="shrink-0" />
+        </div>
       </div>
+      <div
+        className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-[18px] bg-linear-to-b from-background to-transparent"
+        aria-hidden
+      />
     </div>
   );
 }

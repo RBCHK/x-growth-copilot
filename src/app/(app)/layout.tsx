@@ -1,5 +1,6 @@
 import { LeftSidebar } from "@/components/left-sidebar";
 import { MobileSidebar } from "@/components/mobile-sidebar";
+import { AppHeader } from "@/components/app-header";
 
 export default function AppLayout({
   children,
@@ -15,6 +16,7 @@ export default function AppLayout({
       </aside>
 
       <main className="flex flex-1 flex-col overflow-hidden">
+        <AppHeader />
         {children}
       </main>
     </div>

@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SettingsSheet } from "@/components/settings-sheet";
@@ -208,23 +207,10 @@ export function LeftSidebar() {
     getScheduledSlots().then(setSlots).catch(() => {});
   }
 
-  function handleNewDraft() {
-    router.push("/");
-  }
-
   const groupedSlots = groupSlotsByDate(slots);
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-4 py-3">
-        <h2 className="text-sm font-medium tracking-[-0.02em]">x-growth</h2>
-        <Button variant="ghost" size="sm" className="h-7 text-xs font-medium" onClick={handleNewDraft}>
-          New chat
-        </Button>
-      </div>
-
-      <Separator />
-
       <Tabs
         defaultValue="drafts"
         className="flex flex-1 flex-col overflow-hidden"
