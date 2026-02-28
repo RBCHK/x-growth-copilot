@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ChatArea } from "@/components/chat-area";
+import { ConversationView } from "./conversation-view";
 import { NotesSidebarContainer } from "@/components/notes-sidebar-container";
 import { ConversationProvider } from "@/contexts/conversation-context";
 import { getConversation } from "@/app/actions/conversations";
@@ -31,9 +31,7 @@ export default async function ConversationPage({ params, searchParams }: Props) 
       }}
     >
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <ChatArea />
-        </div>
+        <ConversationView />
         <NotesSidebarContainer />
       </div>
     </ConversationProvider>
