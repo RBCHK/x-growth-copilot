@@ -46,6 +46,7 @@ model Conversation {
   status            ConversationStatus  @default(DRAFT)
   originalPostText  String?
   originalPostUrl   String?
+  pinned            Boolean             @default(false)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 

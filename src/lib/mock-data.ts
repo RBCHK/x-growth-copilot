@@ -6,6 +6,7 @@ export const MOCK_DRAFTS: Draft[] = [
     title: "Re: AI agents will replace SaaS",
     contentType: "Reply",
     status: "draft",
+    pinned: false,
     updatedAt: new Date("2026-02-25T10:30:00-08:00"),
   },
   {
@@ -13,6 +14,7 @@ export const MOCK_DRAFTS: Draft[] = [
     title: "Why most AI wrappers die in 6 months",
     contentType: "Post",
     status: "draft",
+    pinned: false,
     updatedAt: new Date("2026-02-25T08:15:00-08:00"),
   },
   {
@@ -20,6 +22,7 @@ export const MOCK_DRAFTS: Draft[] = [
     title: "Re: Indie hackers don't need VCs",
     contentType: "Reply",
     status: "packaged",
+    pinned: false,
     updatedAt: new Date("2026-02-24T22:00:00-08:00"),
   },
   {
@@ -27,6 +30,7 @@ export const MOCK_DRAFTS: Draft[] = [
     title: "The real cost of 'free' tier users",
     contentType: "Thread",
     status: "draft",
+    pinned: false,
     updatedAt: new Date("2026-02-24T15:30:00-08:00"),
   },
   {
@@ -34,6 +38,7 @@ export const MOCK_DRAFTS: Draft[] = [
     title: "Re: Mobile apps are dead, web wins",
     contentType: "Reply",
     status: "draft",
+    pinned: false,
     updatedAt: new Date("2026-02-24T11:00:00-08:00"),
   },
 ];

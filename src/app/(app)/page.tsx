@@ -17,7 +17,7 @@ export default function HomePage() {
     if (!text || isLoading) return;
     setIsLoading(true);
     try {
-      const id = await createConversation({ title: "New draft", contentType });
+      const id = await createConversation({ title: text, contentType });
       router.push(`/c/${id}?msg=${encodeURIComponent(text)}`);
     } catch {
       setIsLoading(false);

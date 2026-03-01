@@ -15,6 +15,7 @@ export interface Draft {
   title: string;
   contentType: ContentType;
   status: DraftStatus;
+  pinned: boolean;
   updatedAt: Date;
 }
 

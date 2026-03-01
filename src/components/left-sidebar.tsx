@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Settings, Clock, CheckCircle2, Circle, Trash2, MoreHorizontal, Star, Pencil } from "lucide-react";
+import { Settings, Clock, CheckCircle2, Circle, Trash2, MoreHorizontal, Pin, PinOff, Pencil } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -80,6 +80,7 @@ function DraftItem({
   onContentTypeChange,
   onTitleSave,
   onStartEditing,
+  onPin,
 }: {
   draft: Draft;
   isActive: boolean;
@@ -88,6 +89,7 @@ function DraftItem({
   onContentTypeChange: (id: string, contentType: ContentType) => void;
   onTitleSave?: (id: string, title: string) => void;
   onStartEditing?: (id: string) => void;
+  onPin?: (id: string, pinned: boolean) => void;
 }) {
   const router = useRouter();
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -188,9 +190,9 @@ function DraftItem({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-            <Star className="h-4 w-4" />
-            Star
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPin?.(draft.id, !draft.pinned); }}>
+            {draft.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+            {draft.pinned ? "Unpin" : "Pin"}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStartEditing?.(draft.id); }}>
             <Pencil className="h-4 w-4" />
@@ -280,7 +282,7 @@ export function LeftSidebar() {
   async function handleNewDraft() {
     try {
       const id = await createConversation({ title: "Untitled" });
-      const newDraft: Draft = { id, title: "Untitled", contentType: "Reply", status: "draft", updatedAt: new Date() };
+      const newDraft: Draft = { id, title: "Untitled", contentType: "Reply", status: "draft", pinned: false, updatedAt: new Date() };
       setDrafts((prev) => [newDraft, ...prev]);
       setEditingDraftId(id);
       router.push(`/c/${id}`);
@@ -300,6 +302,17 @@ export function LeftSidebar() {
     }
   }
 
+  async function handlePin(id: string, pinned: boolean) {
+    try {
+      await updateConversation(id, { pinned });
+      setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, pinned } : d)));
+    } catch {
+      toast.error(pinned ? "Failed to pin draft" : "Failed to unpin draft");
+    }
+  }
+
+  const pinnedDrafts = drafts.filter((d) => d.pinned);
+  const unpinnedDrafts = drafts.filter((d) => !d.pinned);
   const groupedSlots = groupSlotsByDate(slots);
 
   return (
@@ -322,7 +335,51 @@ export function LeftSidebar() {
           </div>
           <ScrollArea className="flex-1 min-h-0 px-2 py-2">
             <div className="flex flex-col gap-2">
-              {drafts.map((draft) => (
+              {pinnedDrafts.length > 0 && (
+                <>
+                  <span className="px-2 pt-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Pinned
+                  </span>
+                  {pinnedDrafts.map((draft) => (
+                    <DraftItem
+                      key={draft.id}
+                      draft={draft}
+                      isActive={activeDraftId === draft.id}
+                      isEditing={editingDraftId === draft.id}
+                      onTitleSave={handleTitleSave}
+                      onStartEditing={setEditingDraftId}
+                      onPin={handlePin}
+                      onDelete={async (id) => {
+                        try {
+                          await deleteConversation(id);
+                          setDrafts((prev) => prev.filter((d) => d.id !== id));
+                          toast.success("Draft deleted");
+                        } catch {
+                          toast.error("Failed to delete draft");
+                        }
+                      }}
+                      onContentTypeChange={async (id, contentType) => {
+                        try {
+                          await updateConversation(id, { contentType });
+                          setDrafts((prev) =>
+                            prev.map((d) => (d.id === id ? { ...d, contentType } : d))
+                          );
+                          window.dispatchEvent(new Event("drafts-updated"));
+                          toast.success("Type updated");
+                        } catch {
+                          toast.error("Failed to update type");
+                        }
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+              {unpinnedDrafts.length > 0 && (
+                <span className={cn("px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider", pinnedDrafts.length > 0 && "mt-2")}>
+                  Drafts
+                </span>
+              )}
+              {unpinnedDrafts.map((draft) => (
                 <DraftItem
                   key={draft.id}
                   draft={draft}
@@ -330,6 +387,7 @@ export function LeftSidebar() {
                   isEditing={editingDraftId === draft.id}
                   onTitleSave={handleTitleSave}
                   onStartEditing={setEditingDraftId}
+                  onPin={handlePin}
                   onDelete={async (id) => {
                     try {
                       await deleteConversation(id);

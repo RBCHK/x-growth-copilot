@@ -41,6 +41,7 @@ export async function getConversations() {
     title: r.title,
     contentType: contentTypeFromPrisma(r.contentType),
     status: statusFromPrisma(r.status),
+    pinned: r.pinned,
     updatedAt: r.updatedAt,
   }));
 }
@@ -100,12 +101,13 @@ export async function createConversation(data: {
 
 export async function updateConversation(
   id: string,
-  data: { title?: string; contentType?: ContentType; status?: DraftStatus }
+  data: { title?: string; contentType?: ContentType; status?: DraftStatus; pinned?: boolean }
 ) {
   const update: Record<string, unknown> = {};
   if (data.title != null) update.title = data.title;
   if (data.contentType != null) update.contentType = contentTypeToPrisma[data.contentType];
   if (data.status != null) update.status = statusToPrisma[data.status];
+  if (data.pinned != null) update.pinned = data.pinned;
   await prisma.conversation.update({ where: { id }, data: update });
 }
 
