@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Settings, Clock, CheckCircle2, Circle, Trash2, MoreHorizontal, Pin, PinOff, Pencil } from "lucide-react";
+import { Settings, Clock, CheckCircle2, Circle, Trash2, MoreHorizontal, Pin, PinOff, Pencil, FileEdit } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -99,8 +99,11 @@ function DraftItem({
   useEffect(() => {
     if (isEditing) {
       setEditTitle(draft.title);
-      titleInputRef.current?.focus();
-      titleInputRef.current?.select();
+      const frame = requestAnimationFrame(() => {
+        titleInputRef.current?.focus();
+        titleInputRef.current?.select();
+      });
+      return () => cancelAnimationFrame(frame);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]);
@@ -184,12 +187,13 @@ function DraftItem({
               "absolute right-2 top-2 h-6 w-6 transition-opacity",
               menuOpen || isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
           >
             <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuContent align="end" className="w-40" onCloseAutoFocus={(e) => e.preventDefault()}>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPin?.(draft.id, !draft.pinned); }}>
             {draft.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
             {draft.pinned ? "Unpin" : "Pin"}
@@ -337,7 +341,8 @@ export function LeftSidebar() {
             <div className="flex flex-col gap-2">
               {pinnedDrafts.length > 0 && (
                 <>
-                  <span className="px-2 pt-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 px-2 pt-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <Pin className="h-3.5 w-3.5 shrink-0" />
                     Pinned
                   </span>
                   {pinnedDrafts.map((draft) => (
@@ -375,7 +380,8 @@ export function LeftSidebar() {
                 </>
               )}
               {unpinnedDrafts.length > 0 && (
-                <span className={cn("px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider", pinnedDrafts.length > 0 && "mt-2")}>
+                <span className={cn("flex items-center gap-1.5 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider", pinnedDrafts.length > 0 && "mt-2")}>
+                  <FileEdit className="h-3.5 w-3.5 shrink-0" />
                   Drafts
                 </span>
               )}

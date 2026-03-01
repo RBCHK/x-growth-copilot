@@ -110,6 +110,7 @@ export function ConversationProvider({
       const text = getTextFromUIMessage(message);
       if (text) {
         await addMessage(conversationId, "assistant", text);
+        window.dispatchEvent(new Event("drafts-updated"));
       }
     },
   });
@@ -144,6 +145,7 @@ export function ConversationProvider({
     const text = initialMessage.trim();
     if (!text) return;
     addMessage(conversationId, "user", text).then(() => {
+      window.dispatchEvent(new Event("drafts-updated"));
       aiSendMessage({ text });
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -154,6 +156,7 @@ export function ConversationProvider({
     setInput("");
     // Save user message to DB
     await addMessage(conversationId, "user", text);
+    window.dispatchEvent(new Event("drafts-updated"));
     // Send to AI (transport body closure provides notes + contentType)
     aiSendMessage({ text });
   }, [input, isLoading, conversationId, aiSendMessage]);

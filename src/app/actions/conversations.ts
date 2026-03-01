@@ -33,7 +33,7 @@ const statusFromPrisma = (v: PrismaConversationStatus): DraftStatus => {
 
 export async function getConversations() {
   const rows = await prisma.conversation.findMany({
-    orderBy: { updatedAt: "desc" },
+    orderBy: { lastActivityAt: "desc" },
     where: { status: { in: ["DRAFT"] } },
   });
   return rows.map((r) => ({
@@ -114,6 +114,10 @@ export async function updateConversation(
 export async function addMessage(conversationId: string, role: "user" | "assistant", content: string) {
   await prisma.message.create({
     data: { conversationId, role, content },
+  });
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { lastActivityAt: new Date() },
   });
   revalidatePath(`/c/${conversationId}`);
 }
