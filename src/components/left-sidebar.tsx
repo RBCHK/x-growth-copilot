@@ -220,7 +220,7 @@ export function LeftSidebar() {
         className="flex flex-1 flex-col overflow-hidden"
         onValueChange={(v) => v === "scheduled" && refreshSlots()}
       >
-        <TabsList className="mx-3 mt-2 grid w-auto grid-cols-2">
+        <TabsList className="mx-3 mt-[15px] grid w-auto grid-cols-2">
           <TabsTrigger value="drafts">Drafts</TabsTrigger>
           <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
         </TabsList>

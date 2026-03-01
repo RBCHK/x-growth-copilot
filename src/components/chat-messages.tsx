@@ -27,21 +27,15 @@ export function ChatMessages() {
       const spacer = spacerRef.current;
       if (el && spacer && spacer.offsetHeight > 0) {
         const spacerH = spacer.offsetHeight;
-        const newMaxScrollTop = Math.max(0, el.scrollHeight - spacerH - el.clientHeight);
+        const contentH = el.scrollHeight - spacerH;
+        const newMaxScrollTop = Math.max(0, contentH - el.clientHeight);
         if (el.scrollTop <= newMaxScrollTop) {
           // Прыжка не будет — убираем сразу
           spacer.style.height = "0";
         } else {
-          // scrollTop будет зажат — сначала плавно докручиваем, потом убираем spacer
-          el.scrollTo({ top: newMaxScrollTop, behavior: "smooth" });
-          let done = false;
-          const finish = () => {
-            if (done) return;
-            done = true;
-            spacer.style.height = "0";
-          };
-          const timer = setTimeout(finish, 400);
-          el.addEventListener("scrollend", () => { clearTimeout(timer); finish(); }, { once: true });
+          // Контент короткий (не вышел за экран) — сжимаем spacer ровно до минимума,
+          // чтобы текущий scrollTop остался валидным и чат не сдвинулся
+          spacer.style.height = `${el.scrollTop + el.clientHeight - contentH}px`;
         }
       }
     }
