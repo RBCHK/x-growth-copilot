@@ -207,6 +207,10 @@ export function LeftSidebar() {
     getScheduledSlots().then(setSlots).catch(() => {});
   }
 
+  function handleNewDraft() {
+    router.push("/");
+  }
+
   const groupedSlots = groupSlotsByDate(slots);
 
   return (
@@ -221,8 +225,13 @@ export function LeftSidebar() {
           <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="drafts" className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full px-2 py-2">
+        <TabsContent value="drafts" className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex h-[28px] shrink-0 items-center px-4">
+            <Button variant="ghost" size="sm" className="h-7 text-xs font-medium" onClick={handleNewDraft}>
+              + New Draft
+            </Button>
+          </div>
+          <ScrollArea className="flex-1 min-h-0 px-2 py-2">
             <div className="flex flex-col gap-2">
               {drafts.map((draft) => (
                 <DraftItem
