@@ -44,7 +44,7 @@ export function NotesSidebar({ onClose }: NotesSidebarProps) {
           </p>
         </div>
       ) : (
-        <ScrollArea className="flex-1 px-6 py-4">
+        <ScrollArea className="flex-1 min-h-0 px-6 py-4">
           <div className="flex flex-col gap-3">
             {notes.map((note) => (
               <div

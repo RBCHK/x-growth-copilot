@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Settings, Clock, CheckCircle2, Circle, Trash2 } from "lucide-react";
+import { Settings, Clock, CheckCircle2, Circle, Trash2, MoreHorizontal, Star, Pencil } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,7 +13,7 @@ import { toast } from "sonner";
 import { SettingsSheet } from "@/components/settings-sheet";
 import { ContentTypeDropdown } from "@/components/content-type-dropdown";
 import { SendMessageButton } from "@/components/send-message-button";
-import { getConversations, deleteConversation, updateConversation } from "@/app/actions/conversations";
+import { getConversations, createConversation, deleteConversation, updateConversation } from "@/app/actions/conversations";
 import { getScheduledSlots, ensureSlotsForWeek } from "@/app/actions/schedule";
 import type { ContentType, Draft, ScheduledSlot, SlotStatus } from "@/lib/types";
 
@@ -74,20 +75,42 @@ function groupSlotsByDate(slots: ScheduledSlot[]) {
 function DraftItem({
   draft,
   isActive,
+  isEditing,
   onDelete,
   onContentTypeChange,
+  onTitleSave,
+  onStartEditing,
 }: {
   draft: Draft;
   isActive: boolean;
+  isEditing?: boolean;
   onDelete: (id: string) => void;
   onContentTypeChange: (id: string, contentType: ContentType) => void;
+  onTitleSave?: (id: string, title: string) => void;
+  onStartEditing?: (id: string) => void;
 }) {
   const router = useRouter();
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const [editTitle, setEditTitle] = useState(draft.title);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  async function handleDelete(e: React.MouseEvent) {
-    e.stopPropagation();
-    await onDelete(draft.id);
+  useEffect(() => {
+    if (isEditing) {
+      setEditTitle(draft.title);
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
+
+  function handleDelete() {
+    onDelete(draft.id);
     if (isActive) router.push("/");
+  }
+
+  function handleTitleSave() {
+    const trimmed = editTitle.trim() || "Untitled";
+    onTitleSave?.(draft.id, trimmed);
   }
 
   return (
@@ -98,18 +121,39 @@ function DraftItem({
       )}
     >
       <div
-        role="button"
-        tabIndex={0}
-        onClick={() => router.push(`/c/${draft.id}`)}
+        role={isEditing ? undefined : "button"}
+        tabIndex={isEditing ? undefined : 0}
+        onClick={() => !isEditing && router.push(`/c/${draft.id}`)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
+          if (!isEditing && (e.key === "Enter" || e.key === " ")) {
             e.preventDefault();
             router.push(`/c/${draft.id}`);
           }
         }}
-        className="flex flex-1 flex-col gap-4 text-left cursor-pointer"
+        className={cn("flex flex-1 flex-col gap-3 text-left", !isEditing && "cursor-pointer")}
       >
-        <span className="line-clamp-2 text-sm font-medium pr-8 leading-snug">{draft.title}</span>
+        {isEditing ? (
+          <input
+            ref={titleInputRef}
+            className="text-sm font-medium pr-8 leading-snug bg-transparent border-none outline-none w-full placeholder:text-muted-foreground/50"
+            value={editTitle}
+            placeholder="Untitled"
+            onChange={(e) => setEditTitle(e.target.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); titleInputRef.current?.blur(); }
+              else if (e.key === "Escape") { titleInputRef.current?.blur(); }
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span
+            className="line-clamp-2 text-sm font-medium pr-8 leading-snug"
+            onDoubleClick={(e) => { e.stopPropagation(); onStartEditing?.(draft.id); }}
+          >
+            {draft.title}
+          </span>
+        )}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
             {formatRelativeDate(draft.updatedAt)}
@@ -129,14 +173,39 @@ function DraftItem({
           </div>
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute right-2 top-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={handleDelete}
-      >
-        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-      </Button>
+      <DropdownMenu onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "absolute right-2 top-2 h-6 w-6 transition-opacity",
+              menuOpen || isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+            <Star className="h-4 w-4" />
+            Star
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStartEditing?.(draft.id); }}>
+            <Pencil className="h-4 w-4" />
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <div className="absolute bottom-0 left-[3%] right-[3%] h-px bg-border" />
     </div>
   );
 }
@@ -178,6 +247,7 @@ export function LeftSidebar() {
   const pathname = usePathname();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [slots, setSlots] = useState<ScheduledSlot[]>([]);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
 
   const activeDraftId = pathname.startsWith("/c/")
     ? pathname.split("/")[2]
@@ -207,8 +277,27 @@ export function LeftSidebar() {
     getScheduledSlots().then(setSlots).catch(() => {});
   }
 
-  function handleNewDraft() {
-    router.push("/");
+  async function handleNewDraft() {
+    try {
+      const id = await createConversation({ title: "Untitled" });
+      const newDraft: Draft = { id, title: "Untitled", contentType: "Reply", status: "draft", updatedAt: new Date() };
+      setDrafts((prev) => [newDraft, ...prev]);
+      setEditingDraftId(id);
+      router.push(`/c/${id}`);
+    } catch {
+      toast.error("Failed to create draft");
+    }
+  }
+
+  async function handleTitleSave(id: string, title: string) {
+    try {
+      await updateConversation(id, { title });
+      setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, title } : d)));
+    } catch {
+      toast.error("Failed to save title");
+    } finally {
+      setEditingDraftId(null);
+    }
   }
 
   const groupedSlots = groupSlotsByDate(slots);
@@ -238,6 +327,9 @@ export function LeftSidebar() {
                   key={draft.id}
                   draft={draft}
                   isActive={activeDraftId === draft.id}
+                  isEditing={editingDraftId === draft.id}
+                  onTitleSave={handleTitleSave}
+                  onStartEditing={setEditingDraftId}
                   onDelete={async (id) => {
                     try {
                       await deleteConversation(id);
