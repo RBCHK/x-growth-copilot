@@ -5,7 +5,7 @@ import { ChatBubble } from "@/components/chat-bubble";
 import { useConversation } from "@/contexts/conversation-context";
 
 const NEAR_BOTTOM = 64; // px
-const SCROLL_TOP_OFFSET = 24; // px = pt-6
+const SCROLL_TOP_OFFSET = 32; // px = pt-8
 
 export function ChatMessages() {
   const { messages, isLoading } = useConversation();
@@ -89,7 +89,7 @@ export function ChatMessages() {
           const offset =
             lastMsg.getBoundingClientRect().top -
             el.getBoundingClientRect().top;
-          el.scrollTop = el.scrollTop + offset - SCROLL_TOP_OFFSET;
+          el.scrollTo({ top: el.scrollTop + offset - SCROLL_TOP_OFFSET, behavior: "smooth" });
         }
       });
       return;
@@ -122,7 +122,7 @@ export function ChatMessages() {
   return (
     <div className="relative flex-1 min-h-0 overflow-hidden">
       <div ref={scrollRef} className="absolute inset-0 overflow-y-auto">
-        <div data-chat-messages className="mx-auto flex w-full max-w-chat flex-col gap-4 px-4 pt-6 pb-6">
+        <div data-chat-messages className="mx-auto flex w-full max-w-chat flex-col gap-4 px-4 pt-8 pb-6">
           {messages.map((msg) => (
             <ChatBubble key={msg.id} message={msg} />
           ))}

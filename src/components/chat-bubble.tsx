@@ -10,7 +10,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
 
   if (isUser) {
     return (
-      <div data-role="user" className="flex w-full justify-end">
+      <div data-role="user" className="animate-in slide-in-from-bottom-4 fade-in duration-300 ease-out flex w-full justify-end">
         <div className="max-w-[80%] rounded-xl rounded-br-md bg-primary px-4 py-2.5 text-base leading-relaxed text-primary-foreground">
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
