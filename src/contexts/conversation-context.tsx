@@ -19,6 +19,7 @@ import {
   clearNotes as clearNotesAction,
 } from "@/app/actions/notes";
 import { addMessage } from "@/app/actions/conversations";
+import { getStoredModel } from "@/components/settings-sheet";
 
 interface ConversationContextValue {
   conversationId: string;
@@ -92,6 +93,7 @@ export function ConversationProvider({
           conversationId,
           contentType: contentTypeRef.current,
           notes: notesRef.current.map((n) => n.content),
+          model: getStoredModel(),
         }),
       })
   );

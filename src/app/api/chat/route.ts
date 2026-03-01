@@ -23,12 +23,20 @@ export async function POST(req: NextRequest) {
     contentType,
     notes,
     conversationId,
+    model: modelParam,
   }: {
     messages: UIMessage[];
     contentType: ContentType;
     notes: string[];
     conversationId?: string;
+    model?: string;
   } = body;
+
+  const ALLOWED_MODELS = ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"] as const;
+  type AllowedModel = (typeof ALLOWED_MODELS)[number];
+  const model: AllowedModel = ALLOWED_MODELS.includes(modelParam as AllowedModel)
+    ? (modelParam as AllowedModel)
+    : "claude-sonnet-4-6";
 
   // Load voice bank and recent modes in parallel
   const [voiceBankEntries, recentModes] = await Promise.all([
@@ -58,12 +66,13 @@ export async function POST(req: NextRequest) {
       : getPostPrompt(contentType as "Post" | "Thread" | "Article", notes, voiceBank);
 
   const systemPrompt = baseSystem + tweetContext;
+  console.log("[chat] model:", model);
 
   // Convert UIMessage[] to ModelMessage[] for streamText
   const modelMessages = await convertToModelMessages(messages);
 
   const result = streamText({
-    model: anthropic("claude-sonnet-4-6"),
+    model: anthropic(model),
     system: systemPrompt,
     messages: modelMessages,
   });

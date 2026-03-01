@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -222,49 +221,48 @@ function StrategyConfigTab() {
   );
 }
 
-function ApiKeysTab() {
-  const [apiKey, setApiKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
+const MODEL_OPTIONS = [
+  { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+  { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
+] as const;
 
-  function handleSave() {
-    toast.success("API key saved");
+const MODEL_STORAGE_KEY = "xreba_model";
+
+export function getStoredModel(): string {
+  if (typeof window === "undefined") return MODEL_OPTIONS[0].value;
+  return localStorage.getItem(MODEL_STORAGE_KEY) ?? MODEL_OPTIONS[0].value;
+}
+
+function ApiKeysTab() {
+  const [model, setModel] = useState<string>(MODEL_OPTIONS[0].value);
+
+  useEffect(() => {
+    setModel(getStoredModel());
+  }, []);
+
+  function handleModelChange(value: string) {
+    setModel(value);
+    localStorage.setItem(MODEL_STORAGE_KEY, value);
+    toast.success("Model saved");
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Anthropic API Key</label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Input
-              type={showKey ? "text" : "password"}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-ant-..."
-              className="pr-10"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-0 top-0 h-full w-9"
-              onClick={() => setShowKey(!showKey)}
-            >
-              {showKey ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Stored in environment variables, never sent to third parties
-        </p>
+        <label className="text-sm font-medium">Model</label>
+        <Select value={model} onValueChange={handleModelChange}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MODEL_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-
-      <Button size="sm" className="w-fit" onClick={handleSave} disabled={!apiKey}>
-        Save
-      </Button>
     </div>
   );
 }

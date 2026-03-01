@@ -105,7 +105,7 @@ function DraftItem({
   return (
     <div
       className={cn(
-        "group relative flex w-full flex-col gap-2 rounded-lg pl-3 pr-11 py-1 text-left transition-colors duration-150",
+        "group flex min-w-0 w-full items-center gap-1 rounded-lg pl-3 pr-1 py-1 text-left transition-colors duration-150",
         isActive ? "bg-accent" : "hover:bg-muted/50",
       )}
     >
@@ -119,12 +119,12 @@ function DraftItem({
             router.push(`/c/${draft.id}`);
           }
         }}
-        className={cn("flex flex-1 flex-col gap-3 text-left", !isEditing && "cursor-pointer")}
+        className={cn("flex min-w-0 flex-1 flex-col gap-1 text-left", !isEditing && "cursor-pointer")}
       >
         {isEditing ? (
           <input
             ref={titleInputRef}
-            className="text-sm font-medium pr-8 leading-snug bg-transparent border-none outline-none w-full placeholder:text-muted-foreground/50"
+            className="text-sm font-medium leading-snug bg-transparent border-none outline-none w-full placeholder:text-muted-foreground/50"
             value={editTitle}
             placeholder="Untitled"
             onChange={(e) => setEditTitle(e.target.value)}
@@ -137,7 +137,7 @@ function DraftItem({
           />
         ) : (
           <span
-            className="line-clamp-2 text-sm font-medium pr-8 leading-snug"
+            className="line-clamp-2 wrap-break-word text-sm font-medium leading-snug max-w-[80%]"
             onDoubleClick={(e) => { e.stopPropagation(); onStartEditing?.(draft.id); }}
           >
             {draft.title}
@@ -150,7 +150,7 @@ function DraftItem({
             variant="ghost"
             size="icon"
             className={cn(
-              "absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 transition-opacity",
+              "shrink-0 h-6 w-6 transition-opacity",
               menuOpen || isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}
             onPointerDown={(e) => e.stopPropagation()}
@@ -159,7 +159,7 @@ function DraftItem({
             <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40" onCloseAutoFocus={(e) => e.preventDefault()}>
+        <DropdownMenuContent side="left" align="start" className="w-40" onCloseAutoFocus={(e) => e.preventDefault()}>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPin?.(draft.id, !draft.pinned); }}>
             {draft.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
             {draft.pinned ? "Unpin" : "Pin"}
@@ -313,8 +313,8 @@ export function LeftSidebar() {
               New Draft
             </Button>
           </div>
-          <ScrollArea className="flex-1 min-h-0 px-2 py-2">
-            <div className="flex flex-col gap-2">
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="flex min-w-0 flex-col gap-2 overflow-x-hidden px-2 py-2">
               {pinnedDrafts.length > 0 && (
                 <>
                   <span className="flex items-center gap-1.5 px-2 pt-1 mt-6 text-sm font-medium text-muted-foreground tracking-wider">
