@@ -8,13 +8,45 @@ const NEAR_BOTTOM = 64; // px
 const SCROLL_TOP_OFFSET = 24; // px = pt-6
 
 export function ChatMessages() {
-  const { messages } = useConversation();
+  const { messages, isLoading } = useConversation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const spacerRef = useRef<HTMLDivElement>(null);
   const stickyRef = useRef(true);
+  const wasLoadingRef = useRef(false);
 
   const userCount = messages.filter((m) => m.role === "user").length;
   const prevUserCount = useRef(userCount);
+
+  // Сбрасываем spacer когда стриминг заканчивается.
+  // Если sticky уже убрал spacer во время генерации — здесь ничего не происходит.
+  // Если контент был короче экрана (sticky не срабатывал) — плавно докручиваем
+  // к концу контента, потом убираем spacer (чтобы не было резкого прыжка).
+  useEffect(() => {
+    if (wasLoadingRef.current && !isLoading) {
+      const el = scrollRef.current;
+      const spacer = spacerRef.current;
+      if (el && spacer && spacer.offsetHeight > 0) {
+        const spacerH = spacer.offsetHeight;
+        const newMaxScrollTop = Math.max(0, el.scrollHeight - spacerH - el.clientHeight);
+        if (el.scrollTop <= newMaxScrollTop) {
+          // Прыжка не будет — убираем сразу
+          spacer.style.height = "0";
+        } else {
+          // scrollTop будет зажат — сначала плавно докручиваем, потом убираем spacer
+          el.scrollTo({ top: newMaxScrollTop, behavior: "smooth" });
+          let done = false;
+          const finish = () => {
+            if (done) return;
+            done = true;
+            spacer.style.height = "0";
+          };
+          const timer = setTimeout(finish, 400);
+          el.addEventListener("scrollend", () => { clearTimeout(timer); finish(); }, { once: true });
+        }
+      }
+    }
+    wasLoadingRef.current = isLoading;
+  }, [isLoading]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -77,6 +109,8 @@ export function ChatMessages() {
       const viewportBottom = el.scrollTop + el.clientHeight;
       if (contentBottom > viewportBottom) {
         el.scrollTop = contentBottom - el.clientHeight;
+        // scrollTop теперь равен newMaxScrollTop без spacer → убираем безопасно
+        if (spacer && spacer.offsetHeight > 0) spacer.style.height = "0";
       }
     }
   }, [messages, userCount]);
