@@ -122,8 +122,12 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    overflow: hidden;
+  }
   body {
     @apply bg-background text-foreground;
+    overflow: hidden;
   }
   /* Tailwind v4 removed cursor-pointer for buttons; restore for clickable elements */
   button:not(:disabled),
