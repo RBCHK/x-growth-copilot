@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import type { ContentType, DraftStatus } from "@/lib/types";
+import { fetchTweetFromText } from "@/lib/parse-tweet";
 import {
   ContentType as PrismaContentType,
   ConversationStatus as PrismaConversationStatus,
@@ -33,7 +34,7 @@ const statusFromPrisma = (v: PrismaConversationStatus): DraftStatus => {
 
 export async function getConversations() {
   const rows = await prisma.conversation.findMany({
-    orderBy: { lastActivityAt: "desc" },
+    orderBy: { createdAt: "desc" },
     where: { status: { in: ["DRAFT"] } },
   });
   return rows.map((r) => ({
@@ -155,4 +156,14 @@ export async function markAsPosted(conversationId: string) {
     data: { status: "POSTED" },
   });
   revalidatePath("/");
+}
+
+// Resolves the conversation title from user input:
+// if it contains a tweet URL, returns the tweet text (truncated); otherwise returns the input as-is.
+export async function resolveTitleFromInput(text: string): Promise<string> {
+  const tweet = await fetchTweetFromText(text);
+  if (tweet) {
+    return tweet.text.length > 80 ? tweet.text.slice(0, 80) + "…" : tweet.text;
+  }
+  return text;
 }

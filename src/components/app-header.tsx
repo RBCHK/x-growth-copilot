@@ -7,6 +7,7 @@ export function AppHeader() {
     <header className="flex h-[64px] min-h-[64px] shrink-0 items-center  bg-background px-6">
       <Link
         href="/"
+        onClick={() => window.dispatchEvent(new Event("focus-chat-input"))}
         className="text-lg font-semibold tracking-tight text-foreground hover:text-foreground/90 transition-colors"
       >
         X Growth Copilot

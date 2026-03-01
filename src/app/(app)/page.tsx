@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChatInput } from "@/components/chat-input";
-import { createConversation } from "@/app/actions/conversations";
+import { createConversation, resolveTitleFromInput } from "@/app/actions/conversations";
 import type { ContentType } from "@/lib/types";
 
 export default function HomePage() {
@@ -17,7 +17,8 @@ export default function HomePage() {
     if (!text || isLoading) return;
     setIsLoading(true);
     try {
-      const id = await createConversation({ title: text, contentType });
+      const title = await resolveTitleFromInput(text);
+      const id = await createConversation({ title, contentType });
       router.push(`/c/${id}?msg=${encodeURIComponent(text)}`);
     } catch {
       setIsLoading(false);
@@ -34,6 +35,7 @@ export default function HomePage() {
           onContentTypeChange={setContentType}
           onSend={handleSend}
           disabled={isLoading}
+          autoFocus
         />
       </div>
     </div>

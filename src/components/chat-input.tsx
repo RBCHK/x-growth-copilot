@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useLayoutEffect, type KeyboardEvent } from "react";
+import { useRef, useCallback, useLayoutEffect, useEffect, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { ContentTypeDropdown } from "@/components/content-type-dropdown";
 import { SendMessageButton } from "@/components/send-message-button";
@@ -16,6 +16,7 @@ interface ChatInputProps {
   onContentTypeChange: (type: ContentType) => void;
   onSend: () => void;
   disabled?: boolean;
+  autoFocus?: boolean;
 }
 
 export function ChatInput({
@@ -25,6 +26,7 @@ export function ChatInput({
   onContentTypeChange,
   onSend,
   disabled,
+  autoFocus,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -39,6 +41,14 @@ export function ChatInput({
   useLayoutEffect(() => {
     adjustHeight();
   }, [value, adjustHeight]);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    textareaRef.current?.focus();
+    const handler = () => textareaRef.current?.focus();
+    window.addEventListener("focus-chat-input", handler);
+    return () => window.removeEventListener("focus-chat-input", handler);
+  }, [autoFocus]);
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     onChange(e.target.value);
@@ -64,7 +74,7 @@ export function ChatInput({
             rows={1}
             disabled={disabled}
             style={{ minHeight: MIN_HEIGHT_PX }}
-            className="w-full resize-none border-0 bg-transparent px-4 pt-4 pb-2 text-left text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 disabled:opacity-50"
+            className="w-full resize-none border-0 bg-transparent pl-[26px] pr-4 pt-[18px] pb-1 text-left text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 disabled:opacity-50"
           />
           <div className="flex items-center justify-between gap-5 px-4 pb-3 pt-1">
             <ContentTypeDropdown

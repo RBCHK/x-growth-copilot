@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Settings, Clock, CheckCircle2, Circle, Trash2, MoreHorizontal, Pin, PinOff, Pencil, FileEdit } from "lucide-react";
+import { Settings, Clock, CheckCircle2, Circle, Trash2, MoreHorizontal, Pin, PinOff, Pencil, FileEdit, FilePlus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SettingsSheet } from "@/components/settings-sheet";
-import { getConversations, createConversation, deleteConversation, updateConversation } from "@/app/actions/conversations";
+import { getConversations, deleteConversation, updateConversation } from "@/app/actions/conversations";
 import { getScheduledSlots, ensureSlotsForWeek } from "@/app/actions/schedule";
 import type { ContentType, Draft, ScheduledSlot, SlotStatus } from "@/lib/types";
 
@@ -105,7 +105,7 @@ function DraftItem({
   return (
     <div
       className={cn(
-        "group relative flex w-full flex-col gap-2 rounded-lg pl-3 pr-11 py-2 text-left transition-colors duration-150",
+        "group relative flex w-full flex-col gap-2 rounded-lg pl-3 pr-11 py-1 text-left transition-colors duration-150",
         isActive ? "bg-accent" : "hover:bg-muted/50",
       )}
     >
@@ -219,13 +219,22 @@ export function LeftSidebar() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [slots, setSlots] = useState<ScheduledSlot[]>([]);
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const fetchSeqRef = useRef(0);
 
   const activeDraftId = pathname.startsWith("/c/")
     ? pathname.split("/")[2]
     : null;
 
+  function fetchAndSetDrafts() {
+    const seq = ++fetchSeqRef.current;
+    getConversations()
+      .then((data) => { if (fetchSeqRef.current === seq) setDrafts(data); })
+      .catch(() => { if (fetchSeqRef.current === seq) setDrafts([]); });
+  }
+
   useEffect(() => {
-    getConversations().then(setDrafts).catch(() => setDrafts([]));
+    fetchAndSetDrafts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   useEffect(() => {
@@ -239,30 +248,30 @@ export function LeftSidebar() {
   }, []);
 
   useEffect(() => {
-    const handler = () => getConversations().then(setDrafts).catch(() => {});
+    const handler = fetchAndSetDrafts;
     window.addEventListener("drafts-updated", handler);
     return () => window.removeEventListener("drafts-updated", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function refreshSlots() {
     getScheduledSlots().then(setSlots).catch(() => {});
   }
 
-  async function handleNewDraft() {
-    try {
-      const id = await createConversation({ title: "Untitled" });
-      const newDraft: Draft = { id, title: "Untitled", contentType: "Reply", status: "draft", pinned: false, updatedAt: new Date() };
-      setDrafts((prev) => [newDraft, ...prev]);
-      setEditingDraftId(id);
-      router.push(`/c/${id}`);
-    } catch {
-      toast.error("Failed to create draft");
-    }
+  function handleNewDraft() {
+    window.dispatchEvent(new Event("focus-chat-input"));
+    router.push("/");
+  }
+
+  function handleStartEditing(id: string) {
+    fetchSeqRef.current++;
+    setEditingDraftId(id);
   }
 
   async function handleTitleSave(id: string, title: string) {
     try {
       await updateConversation(id, { title });
+      fetchSeqRef.current++;
       setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, title } : d)));
     } catch {
       toast.error("Failed to save title");
@@ -274,6 +283,7 @@ export function LeftSidebar() {
   async function handlePin(id: string, pinned: boolean) {
     try {
       await updateConversation(id, { pinned });
+      fetchSeqRef.current++;
       setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, pinned } : d)));
     } catch {
       toast.error(pinned ? "Failed to pin draft" : "Failed to unpin draft");
@@ -297,16 +307,17 @@ export function LeftSidebar() {
         </TabsList>
 
         <TabsContent value="drafts" className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex h-[28px] shrink-0 items-center justify-end px-4 mt-[15px]">
-            <Button variant="ghost" size="sm" className="h-7 text-xs font-medium" onClick={handleNewDraft}>
-              + New Draft
+          <div className="flex h-[28px] shrink-0 items-center justify-start px-4 mt-[15px]">
+            <Button variant="ghost" size="sm" className="h-7 text-sm font-medium gap-1.5" onClick={handleNewDraft}>
+              <FilePlus className="h-3.5 w-3.5 shrink-0" />
+              New Draft
             </Button>
           </div>
           <ScrollArea className="flex-1 min-h-0 px-2 py-2">
             <div className="flex flex-col gap-2">
               {pinnedDrafts.length > 0 && (
                 <>
-                  <span className="flex items-center gap-1.5 px-2 pt-1 mt-6 text-xs font-medium text-muted-foreground tracking-wider">
+                  <span className="flex items-center gap-1.5 px-2 pt-1 mt-6 text-sm font-medium text-muted-foreground tracking-wider">
                     <Pin className="h-3.5 w-3.5 shrink-0" />
                     Pinned
                   </span>
@@ -317,7 +328,7 @@ export function LeftSidebar() {
                       isActive={activeDraftId === draft.id}
                       isEditing={editingDraftId === draft.id}
                       onTitleSave={handleTitleSave}
-                      onStartEditing={setEditingDraftId}
+                      onStartEditing={handleStartEditing}
                       onPin={handlePin}
                       onDelete={async (id) => {
                         try {
@@ -333,7 +344,7 @@ export function LeftSidebar() {
                 </>
               )}
               {unpinnedDrafts.length > 0 && (
-                <span className="flex items-center gap-1.5 px-2 mt-6 text-xs font-medium text-muted-foreground tracking-wider">
+                <span className="flex items-center gap-1.5 px-2 mt-6 text-sm font-medium text-muted-foreground tracking-wider">
                   <FileEdit className="h-3.5 w-3.5 shrink-0" />
                   Drafts
                 </span>
@@ -345,7 +356,7 @@ export function LeftSidebar() {
                   isActive={activeDraftId === draft.id}
                   isEditing={editingDraftId === draft.id}
                   onTitleSave={handleTitleSave}
-                  onStartEditing={setEditingDraftId}
+                  onStartEditing={handleStartEditing}
                   onPin={handlePin}
                   onDelete={async (id) => {
                     try {
