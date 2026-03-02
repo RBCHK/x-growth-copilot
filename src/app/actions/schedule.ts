@@ -14,13 +14,31 @@ const slotStatusToPrisma: Record<SlotStatus, PrismaSlotStatus> = {
 const slotTypeToPrisma: Record<SlotType, PrismaSlotType> = {
   Reply: "REPLY",
   Post: "POST",
+  Thread: "THREAD",
+  Article: "ARTICLE",
 };
 
 const slotStatusFromPrisma = (v: PrismaSlotStatus): SlotStatus =>
   v.toLowerCase() as SlotStatus;
 
-const slotTypeFromPrisma = (v: PrismaSlotType): SlotType =>
-  v === "REPLY" ? "Reply" : "Post";
+const slotTypeFromPrisma = (v: PrismaSlotType): SlotType => {
+  const map: Record<PrismaSlotType, SlotType> = {
+    REPLY: "Reply",
+    POST: "Post",
+    THREAD: "Thread",
+    ARTICLE: "Article",
+  };
+  return map[v];
+};
+
+// Convert "HH:MM" (24h) → "h:MM AM/PM"
+function time24to12(time24: string): string {
+  const [h, m] = time24.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return time24;
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
 
 // Combines a date (midnight) with a time slot string like "9:00 AM" → absolute Date
 function getSlotDateTime(date: Date, timeSlot: string): Date {
@@ -135,6 +153,14 @@ export async function getScheduledSlots() {
 }
 
 export async function ensureSlotsForWeek() {
+  // If new scheduleConfig exists, use it for slot generation
+  const scheduleConfig = await getScheduleConfig();
+  if (scheduleConfig) {
+    await regenerateSlotsFromConfig(scheduleConfig);
+    return;
+  }
+
+  // Fallback: legacy config (postsPerDay + timeSlots array)
   const config = await getStrategyConfig();
   const timeSlots = config?.timeSlots ?? ["9:00 AM", "12:00 PM", "3:00 PM", "6:00 PM"];
   const postsPerDay = config?.postsPerDay ?? 2;
@@ -169,6 +195,107 @@ export async function ensureSlotsForWeek() {
 // Add selected text to the next available slot of matching type.
 // Updates conversation status to SCHEDULED or POSTED depending on slot timing.
 // If no free slot exists, generates slots for the next day and retries.
+// --- Schedule Config (Posts / Threads / Articles weekly grid) ---
+
+export type DayKey = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+
+export type SlotRow = {
+  id: string;
+  time: string; // "HH:MM" 24h
+  days: Record<DayKey, boolean>;
+};
+
+export type ContentSchedule = { slots: SlotRow[] };
+
+export type ScheduleConfig = {
+  posts: ContentSchedule;
+  threads: ContentSchedule;
+  articles: ContentSchedule;
+};
+
+export async function getScheduleConfig(): Promise<ScheduleConfig | null> {
+  const row = await prisma.strategyConfig.findFirst({ orderBy: { createdAt: "desc" } });
+  if (!row || !row.scheduleConfig) return null;
+  return row.scheduleConfig as ScheduleConfig;
+}
+
+export async function saveScheduleConfig(data: ScheduleConfig): Promise<void> {
+  const existing = await prisma.strategyConfig.findFirst();
+  const payload = { scheduleConfig: data as object };
+  if (existing) {
+    await prisma.strategyConfig.update({ where: { id: existing.id }, data: payload });
+  } else {
+    await prisma.strategyConfig.create({
+      data: { postsPerDay: 2, replySessionsPerDay: 4, timeSlots: [], scheduleConfig: data as object },
+    });
+  }
+  // Auto-regenerate scheduled slots starting from tomorrow
+  await regenerateSlotsFromConfig(data);
+  revalidatePath("/");
+}
+
+const DAY_TO_JS: Record<DayKey, number> = {
+  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+};
+
+const SECTION_TO_SLOT_TYPE: Record<keyof ScheduleConfig, PrismaSlotType> = {
+  posts: "POST",
+  threads: "THREAD",
+  articles: "ARTICLE",
+};
+
+// Regenerate EMPTY slots for the next 7 days (starting tomorrow) based on schedule config.
+// Leaves FILLED/POSTED slots untouched.
+async function regenerateSlotsFromConfig(config: ScheduleConfig) {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+
+  // Remove future EMPTY slots (don't touch FILLED/POSTED)
+  await prisma.scheduledSlot.deleteMany({
+    where: {
+      status: "EMPTY",
+      date: { gte: tomorrow },
+    },
+  });
+
+  // Build dates for next 7 days
+  const dates: Date[] = [];
+  for (let d = 0; d < 7; d++) {
+    const date = new Date(tomorrow);
+    date.setDate(date.getDate() + d);
+    dates.push(date);
+  }
+
+  // Create slots from config
+  for (const [section, schedule] of Object.entries(config) as [keyof ScheduleConfig, ContentSchedule][]) {
+    const slotType = SECTION_TO_SLOT_TYPE[section];
+
+    for (const slot of schedule.slots) {
+      if (!slot.time) continue;
+      const timeSlot = time24to12(slot.time);
+
+      for (const date of dates) {
+        const jsDay = date.getDay(); // 0=Sun, 1=Mon, ...
+        const dayKey = (Object.entries(DAY_TO_JS).find(([, num]) => num === jsDay)?.[0]) as DayKey | undefined;
+        if (!dayKey || !slot.days[dayKey]) continue;
+
+        // Check no existing slot (FILLED/POSTED) at same date+time+type
+        const dayStart = new Date(date);
+        const dayEnd = new Date(date.getTime() + 86400000);
+        const existing = await prisma.scheduledSlot.findFirst({
+          where: { date: { gte: dayStart, lt: dayEnd }, timeSlot, slotType },
+        });
+        if (!existing) {
+          await prisma.scheduledSlot.create({
+            data: { date, timeSlot, slotType, status: "EMPTY" },
+          });
+        }
+      }
+    }
+  }
+}
+
 export async function addToQueue(
   content: string,
   conversationId?: string,

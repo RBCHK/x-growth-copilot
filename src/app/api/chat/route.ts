@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
-import type { ContentType } from "@/lib/types";
+import { SUPPORTED_LANGUAGES, type ContentType } from "@/lib/types";
 import { getVoiceBankEntries } from "@/app/actions/voice-bank";
 import { getRecentUsedModes } from "@/app/actions/conversations";
 import { getReplyPrompt } from "@/prompts/analyst-reply";
@@ -24,13 +24,24 @@ export async function POST(req: NextRequest) {
     notes,
     conversationId,
     model: modelParam,
+    conversationLanguage,
+    contentLanguage,
   }: {
     messages: UIMessage[];
     contentType: ContentType;
     notes: string[];
     conversationId?: string;
     model?: string;
+    conversationLanguage?: string;
+    contentLanguage?: string;
   } = body;
+
+  function resolveLanguageLabel(value: string | undefined, defaultLabel: string): string {
+    const lang = SUPPORTED_LANGUAGES.find((l) => l.value === value);
+    return lang ? lang.label : defaultLabel;
+  }
+  const convLangLabel    = resolveLanguageLabel(conversationLanguage, "Russian");
+  const contentLangLabel = resolveLanguageLabel(contentLanguage, "English");
 
   const ALLOWED_MODELS = ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"] as const;
   type AllowedModel = (typeof ALLOWED_MODELS)[number];
@@ -62,8 +73,8 @@ export async function POST(req: NextRequest) {
   // Build system prompt
   const baseSystem =
     contentType === "Reply"
-      ? getReplyPrompt(notes, voiceBank, recentModes)
-      : getPostPrompt(contentType as "Post" | "Thread" | "Article", notes, voiceBank);
+      ? getReplyPrompt(notes, voiceBank, recentModes, convLangLabel, contentLangLabel)
+      : getPostPrompt(contentType as "Post" | "Thread" | "Article", notes, voiceBank, convLangLabel, contentLangLabel);
 
   const systemPrompt = baseSystem + tweetContext;
   console.log("[chat] model:", model);

@@ -7,7 +7,7 @@ export type DraftStatus = (typeof DRAFT_STATUSES)[number];
 export const SLOT_STATUSES = ["empty", "filled", "posted"] as const;
 export type SlotStatus = (typeof SLOT_STATUSES)[number];
 
-export const SLOT_TYPES = ["Reply", "Post"] as const;
+export const SLOT_TYPES = ["Reply", "Post", "Thread", "Article"] as const;
 export type SlotType = (typeof SLOT_TYPES)[number];
 
 export interface Draft {
@@ -42,4 +42,22 @@ export interface Note {
   id: string;
   content: string;
   createdAt: Date;
+}
+
+export const SUPPORTED_LANGUAGES = [
+  { value: "en", label: "English" },
+  { value: "ru", label: "Russian" },
+  { value: "es", label: "Spanish" },
+  { value: "de", label: "German" },
+  { value: "fr", label: "French" },
+  { value: "zh", label: "Chinese" },
+  { value: "ja", label: "Japanese" },
+] as const;
+
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]["value"];
+
+export interface LanguageSettings {
+  interfaceLanguage: SupportedLanguage;
+  conversationLanguage: SupportedLanguage;
+  contentLanguage: SupportedLanguage;
 }

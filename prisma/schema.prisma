@@ -26,6 +26,8 @@ enum ConversationStatus {
 enum SlotType {
   POST
   REPLY
+  THREAD
+  ARTICLE
 }
 
 enum SlotStatus {
@@ -100,6 +102,7 @@ model StrategyConfig {
   postsPerDay        Int      @default(2)
   replySessionsPerDay Int      @default(4)
   timeSlots          Json     // e.g. ["9:00 AM", "12:00 PM", "3:00 PM", "6:00 PM"]
+  scheduleConfig     Json?    // { posts: { slots: [...] }, threads: {...}, articles: {...} }
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

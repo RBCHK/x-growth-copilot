@@ -1,7 +1,13 @@
 import { formatModesForPrompt } from "./modes";
 import { formatAntiPatternsForPrompt } from "./anti-patterns";
 
-export function getReplyPrompt(notes: string[], voiceBank: string[], recentModes: string[] = []): string {
+export function getReplyPrompt(
+  notes: string[],
+  voiceBank: string[],
+  recentModes: string[] = [],
+  conversationLanguage: string = "Russian",
+  contentLanguage: string = "English"
+): string {
   const modesBlock = formatModesForPrompt();
   const antiPatternsBlock = formatAntiPatternsForPrompt();
 
@@ -76,6 +82,6 @@ ${antiPatternsBlock}
 ---
 
 ## Language Rules
-- Conduct ALL dialogue in Russian: analysis, questions, angles, sparring, scoring notes.
-- The final reply inside the code block must always be in English.`.trim();
+- Conduct ALL dialogue in ${conversationLanguage}: analysis, questions, angles, sparring, scoring notes.
+- The final reply inside the code block must always be in ${contentLanguage}.`.trim();
 }

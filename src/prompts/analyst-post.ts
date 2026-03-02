@@ -28,7 +28,9 @@ const FORMAT_RULES: Record<PostContentType, string> = {
 export function getPostPrompt(
   contentType: PostContentType,
   notes: string[],
-  voiceBank: string[]
+  voiceBank: string[],
+  conversationLanguage: string = "Russian",
+  contentLanguage: string = "English"
 ): string {
   const hooksBlock = formatHooksForPrompt();
   const antiPatternsBlock = formatAntiPatternsForPrompt();
@@ -108,6 +110,6 @@ ${antiPatternsBlock}
 ---
 
 ## Language Rules
-- Conduct ALL dialogue in Russian: analysis, angles, sparring, checklist comments.
-- The final post/thread/article inside the code block must always be in English.`.trim();
+- Conduct ALL dialogue in ${conversationLanguage}: analysis, angles, sparring, checklist comments.
+- The final post/thread/article inside the code block must always be in ${contentLanguage}.`.trim();
 }

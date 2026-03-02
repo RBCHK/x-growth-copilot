@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -23,7 +23,14 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getVoiceBankEntries, addVoiceBankEntry, removeVoiceBankEntry } from "@/app/actions/voice-bank";
-import { getStrategyConfig, upsertStrategyConfig } from "@/app/actions/schedule";
+import {
+  getScheduleConfig,
+  saveScheduleConfig,
+  type DayKey,
+  type SlotRow,
+  type ScheduleConfig,
+} from "@/app/actions/schedule";
+import { SUPPORTED_LANGUAGES, type SupportedLanguage, type LanguageSettings } from "@/lib/types";
 
 interface VoiceBankEntry {
   id: string;
@@ -147,73 +154,182 @@ function VoiceBankTab() {
   );
 }
 
+const DAYS: DayKey[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function emptyDays(): Record<DayKey, boolean> {
+  return { Mon: false, Tue: false, Wed: false, Thu: false, Fri: false, Sat: false, Sun: false };
+}
+
+function formatTime12(time24: string): string {
+  const [h, m] = time24.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return time24;
+  const period = h >= 12 ? "pm" : "am";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+const DEFAULT_SCHEDULE: ScheduleConfig = {
+  posts: { slots: [] },
+  threads: { slots: [] },
+  articles: { slots: [] },
+};
+
+interface ScheduleSectionProps {
+  label: string;
+  section: keyof ScheduleConfig;
+  slots: SlotRow[];
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  onTimeChange: (id: string, time: string) => void;
+  onDayToggle: (id: string, day: DayKey) => void;
+}
+
+function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayToggle }: ScheduleSectionProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-medium">{label}</p>
+      <div className="rounded-xl border border-border overflow-hidden">
+        {/* Header */}
+        <div className="grid grid-cols-[130px_repeat(7,1fr)] bg-muted/20 px-1">
+          <div className="px-3 py-3 text-xs text-muted-foreground">Time</div>
+          {DAYS.map((d) => (
+            <div key={d} className="py-3 text-center text-xs font-semibold text-muted-foreground">{d}</div>
+          ))}
+        </div>
+
+        {/* Rows */}
+        {slots.map((slot) => (
+          <div key={slot.id} className="grid grid-cols-[130px_repeat(7,1fr)] border-t border-border items-center px-1">
+            <div className="flex items-center gap-1.5 px-3 py-3.5">
+              {editingId === slot.id ? (
+                <input
+                  type="time"
+                  autoFocus
+                  value={slot.time}
+                  onChange={(e) => onTimeChange(slot.id, e.target.value)}
+                  onBlur={() => setEditingId(null)}
+                  onKeyDown={(e) => e.key === "Enter" && setEditingId(null)}
+                  className="w-[80px] bg-transparent text-sm outline-none text-foreground scheme-dark"
+                />
+              ) : (
+                <button
+                  onClick={() => setEditingId(slot.id)}
+                  className="text-sm text-foreground/80 hover:text-foreground transition-colors"
+                >
+                  {formatTime12(slot.time)}
+                </button>
+              )}
+              <button
+                onClick={() => onRemove(slot.id)}
+                className="text-muted-foreground/50 hover:text-foreground transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {DAYS.map((day) => (
+              <div key={day} className="flex justify-center py-3.5">
+                <button
+                  role="checkbox"
+                  aria-checked={slot.days[day]}
+                  onClick={() => onDayToggle(slot.id, day)}
+                  className={`h-6 w-6 rounded-lg border-2 flex items-center justify-center transition-all duration-150 ${
+                    slot.days[day]
+                      ? "bg-blue-500 border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]"
+                      : "border-border/60 bg-muted/30 hover:border-border"
+                  }`}
+                >
+                  {slot.days[day] && (
+                    <svg viewBox="0 0 12 12" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="2,6 5,9 10,3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+        ))}
+
+        {/* Add row */}
+        <div className="border-t border-border">
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-1.5 px-4 py-3 text-muted-foreground/60 hover:text-foreground transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StrategyConfigTab() {
-  const [postsPerDay, setPostsPerDay] = useState("2");
-  const [replySessionsPerDay, setReplySessionsPerDay] = useState("4");
-  const [timeSlots, setTimeSlots] = useState("9:00 AM, 12:00 PM, 3:00 PM, 6:00 PM");
+  const [config, setConfig] = useState<ScheduleConfig>(DEFAULT_SCHEDULE);
 
   useEffect(() => {
-    getStrategyConfig().then((c) => {
-      if (c) {
-        setPostsPerDay(String(c.postsPerDay));
-        setReplySessionsPerDay(String(c.replySessionsPerDay));
-        setTimeSlots(c.timeSlots.join(", "));
-      }
+    getScheduleConfig().then((c) => {
+      if (c) setConfig(c);
     });
   }, []);
 
+  function addSlot(section: keyof ScheduleConfig) {
+    const newSlot: SlotRow = { id: crypto.randomUUID(), time: "10:00", days: emptyDays() };
+    setConfig((prev) => ({ ...prev, [section]: { slots: [...prev[section].slots, newSlot] } }));
+  }
+
+  function removeSlot(section: keyof ScheduleConfig, id: string) {
+    setConfig((prev) => ({ ...prev, [section]: { slots: prev[section].slots.filter((s) => s.id !== id) } }));
+  }
+
+  function updateTime(section: keyof ScheduleConfig, id: string, time: string) {
+    setConfig((prev) => ({
+      ...prev,
+      [section]: { slots: prev[section].slots.map((s) => (s.id === id ? { ...s, time } : s)) },
+    }));
+  }
+
+  function toggleDay(section: keyof ScheduleConfig, id: string, day: DayKey) {
+    setConfig((prev) => ({
+      ...prev,
+      [section]: {
+        slots: prev[section].slots.map((s) =>
+          s.id === id ? { ...s, days: { ...s.days, [day]: !s.days[day] } } : s
+        ),
+      },
+    }));
+  }
+
   async function handleSave() {
     try {
-      const slots = timeSlots.split(",").map((s) => s.trim()).filter(Boolean);
-      await upsertStrategyConfig({
-        postsPerDay: parseInt(postsPerDay, 10) || 2,
-        replySessionsPerDay: parseInt(replySessionsPerDay, 10) || 4,
-        timeSlots: slots.length ? slots : ["9:00 AM", "12:00 PM", "3:00 PM", "6:00 PM"],
-      });
-      toast.success("Strategy config saved");
+      await saveScheduleConfig(config);
+      toast.success("Strategy saved");
     } catch {
       toast.error("Failed to save");
     }
   }
 
+  const sections: { label: string; section: keyof ScheduleConfig }[] = [
+    { label: "Posts", section: "posts" },
+    { label: "Threads", section: "threads" },
+    { label: "Articles", section: "articles" },
+  ];
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Posts per day</label>
-        <Input
-          type="number"
-          min="0"
-          max="10"
-          value={postsPerDay}
-          onChange={(e) => setPostsPerDay(e.target.value)}
-          className="w-24"
+    <div className="flex flex-col gap-5">
+      {sections.map(({ label, section }) => (
+        <ScheduleSection
+          key={section}
+          label={label}
+          section={section}
+          slots={config[section].slots}
+          onAdd={() => addSlot(section)}
+          onRemove={(id) => removeSlot(section, id)}
+          onTimeChange={(id, time) => updateTime(section, id, time)}
+          onDayToggle={(id, day) => toggleDay(section, id, day)}
         />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Reply sessions per day</label>
-        <Input
-          type="number"
-          min="0"
-          max="10"
-          value={replySessionsPerDay}
-          onChange={(e) => setReplySessionsPerDay(e.target.value)}
-          className="w-24"
-        />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Time slots (PST)</label>
-        <Input
-          value={timeSlots}
-          onChange={(e) => setTimeSlots(e.target.value)}
-          placeholder="9:00 AM, 12:00 PM, 3:00 PM"
-        />
-        <p className="text-xs text-muted-foreground">
-          Comma-separated times in PST
-        </p>
-      </div>
-
+      ))}
       <Button size="sm" className="w-fit" onClick={handleSave}>
         Save
       </Button>
@@ -231,6 +347,75 @@ const MODEL_STORAGE_KEY = "xreba_model";
 export function getStoredModel(): string {
   if (typeof window === "undefined") return MODEL_OPTIONS[0].value;
   return localStorage.getItem(MODEL_STORAGE_KEY) ?? MODEL_OPTIONS[0].value;
+}
+
+const LANGUAGE_STORAGE_KEY = "xreba_language";
+
+const DEFAULT_LANGUAGE_SETTINGS: LanguageSettings = {
+  interfaceLanguage: "en",
+  conversationLanguage: "ru",
+  contentLanguage: "en",
+};
+
+export function getStoredLanguageSettings(): LanguageSettings {
+  if (typeof window === "undefined") return DEFAULT_LANGUAGE_SETTINGS;
+  try {
+    const raw = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (!raw) return DEFAULT_LANGUAGE_SETTINGS;
+    return { ...DEFAULT_LANGUAGE_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_LANGUAGE_SETTINGS;
+  }
+}
+
+function saveLanguageSettings(settings: LanguageSettings): void {
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, JSON.stringify(settings));
+}
+
+function LanguageTab() {
+  const [settings, setSettings] = useState<LanguageSettings>(DEFAULT_LANGUAGE_SETTINGS);
+
+  useEffect(() => {
+    setSettings(getStoredLanguageSettings());
+  }, []);
+
+  function handleChange(key: keyof LanguageSettings, value: SupportedLanguage) {
+    const updated = { ...settings, [key]: value };
+    setSettings(updated);
+    saveLanguageSettings(updated);
+    toast.success("Language saved");
+  }
+
+  const fields: { key: keyof LanguageSettings; label: string; desc: string }[] = [
+    { key: "interfaceLanguage",    label: "Interface language",    desc: "UI labels and buttons" },
+    { key: "conversationLanguage", label: "Conversation language", desc: "Language AI analyzes and chats in" },
+    { key: "contentLanguage",      label: "Content language",      desc: "Language for generated posts and replies" },
+  ];
+
+  return (
+    <div className="flex flex-col gap-5">
+      {fields.map(({ key, label, desc }) => (
+        <div key={key} className="flex flex-col gap-2">
+          <div>
+            <label className="text-sm font-medium">{label}</label>
+            <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+          </div>
+          <Select value={settings[key]} onValueChange={(v) => handleChange(key, v as SupportedLanguage)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <SelectItem key={lang.value} value={lang.value}>
+                  {lang.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function ApiKeysTab() {
@@ -317,7 +502,7 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
         </SheetHeader>
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           <Tabs defaultValue="voice-bank" className="flex-1 min-h-0">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="voice-bank" className="text-xs">
                 Voice
               </TabsTrigger>
@@ -327,6 +512,9 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
               <TabsTrigger value="api-keys" className="text-xs">
                 API
               </TabsTrigger>
+              <TabsTrigger value="language" className="text-xs">
+                Language
+              </TabsTrigger>
               <TabsTrigger value="auth" className="text-xs">
                 Auth
               </TabsTrigger>
@@ -335,11 +523,14 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
             <TabsContent value="voice-bank" className="mt-4 flex-1 min-h-0 flex flex-col">
               <VoiceBankTab />
             </TabsContent>
-            <TabsContent value="strategy" className="mt-4">
+            <TabsContent value="strategy" className="mt-4 overflow-y-auto max-h-[calc(100vh-140px)] pr-1">
               <StrategyConfigTab />
             </TabsContent>
             <TabsContent value="api-keys" className="mt-4">
               <ApiKeysTab />
+            </TabsContent>
+            <TabsContent value="language" className="mt-4">
+              <LanguageTab />
             </TabsContent>
             <TabsContent value="auth" className="mt-4">
               <AuthTab />
