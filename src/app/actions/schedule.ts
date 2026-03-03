@@ -258,32 +258,33 @@ const SECTION_TO_SLOT_TYPE: Record<keyof ScheduleConfig, PrismaSlotType> = {
 };
 
 /**
- * Regenerates EMPTY slots for the next 7 days (starting tomorrow) from a ScheduleConfig.
+ * Regenerates EMPTY slots for the next 7 days (starting today) from a ScheduleConfig.
  * FILLED and POSTED slots are never touched — only future EMPTY slots are deleted and recreated.
+ * Only creates slots whose scheduled datetime is strictly in the future.
  * Called automatically after saveScheduleConfig() and from ensureSlotsForWeek() when config exists.
  */
 async function regenerateSlotsFromConfig(config: ScheduleConfig) {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  // Remove future EMPTY slots (don't touch FILLED/POSTED)
+  // Remove EMPTY slots from today onwards (don't touch FILLED/POSTED)
   await prisma.scheduledSlot.deleteMany({
     where: {
       status: "EMPTY",
-      date: { gte: tomorrow },
+      date: { gte: today },
     },
   });
 
-  // Build dates for next 7 days
+  // Build dates for today + next 6 days (7 days total)
   const dates: Date[] = [];
   for (let d = 0; d < 7; d++) {
-    const date = new Date(tomorrow);
+    const date = new Date(today);
     date.setDate(date.getDate() + d);
     dates.push(date);
   }
 
-  // Create slots from config
+  // Create slots from config — only for future datetimes
   for (const [section, schedule] of Object.entries(config) as [keyof ScheduleConfig, ContentSchedule][]) {
     const slotType = SECTION_TO_SLOT_TYPE[section];
 
@@ -295,6 +296,10 @@ async function regenerateSlotsFromConfig(config: ScheduleConfig) {
         const jsDay = date.getDay(); // 0=Sun, 1=Mon, ...
         const dayKey = (Object.entries(DAY_TO_JS).find(([, num]) => num === jsDay)?.[0]) as DayKey | undefined;
         if (!dayKey || !slot.days[dayKey]) continue;
+
+        // Skip slots that are in the past or at the current moment
+        const slotDateTime = getSlotDateTime(date, timeSlot);
+        if (slotDateTime <= now) continue;
 
         // Check no existing slot (FILLED/POSTED) at same date+time+type
         const dayStart = new Date(date);

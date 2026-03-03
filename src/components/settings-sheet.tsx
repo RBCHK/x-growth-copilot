@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import {
   Sheet,
@@ -268,6 +268,7 @@ function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayTog
 
 function StrategyConfigTab() {
   const [config, setConfig] = useState<ScheduleConfig>(DEFAULT_SCHEDULE);
+  const pendingSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getScheduleConfig().then((c) => {
@@ -275,40 +276,49 @@ function StrategyConfigTab() {
     });
   }, []);
 
+  function scheduleSave(newConfig: ScheduleConfig) {
+    if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current);
+    pendingSaveRef.current = setTimeout(async () => {
+      try {
+        await saveScheduleConfig(newConfig);
+        window.dispatchEvent(new Event("slots-updated"));
+      } catch {
+        toast.error("Failed to save strategy");
+      }
+    }, 300);
+  }
+
   function addSlot(section: keyof ScheduleConfig) {
     const newSlot: SlotRow = { id: crypto.randomUUID(), time: "10:00", days: emptyDays() };
     setConfig((prev) => ({ ...prev, [section]: { slots: [...prev[section].slots, newSlot] } }));
   }
 
   function removeSlot(section: keyof ScheduleConfig, id: string) {
-    setConfig((prev) => ({ ...prev, [section]: { slots: prev[section].slots.filter((s) => s.id !== id) } }));
+    const newConfig = { ...config, [section]: { slots: config[section].slots.filter((s) => s.id !== id) } };
+    setConfig(newConfig);
+    scheduleSave(newConfig);
   }
 
   function updateTime(section: keyof ScheduleConfig, id: string, time: string) {
-    setConfig((prev) => ({
-      ...prev,
-      [section]: { slots: prev[section].slots.map((s) => (s.id === id ? { ...s, time } : s)) },
-    }));
+    const newConfig = {
+      ...config,
+      [section]: { slots: config[section].slots.map((s) => (s.id === id ? { ...s, time } : s)) },
+    };
+    setConfig(newConfig);
+    scheduleSave(newConfig);
   }
 
   function toggleDay(section: keyof ScheduleConfig, id: string, day: DayKey) {
-    setConfig((prev) => ({
-      ...prev,
+    const newConfig = {
+      ...config,
       [section]: {
-        slots: prev[section].slots.map((s) =>
+        slots: config[section].slots.map((s) =>
           s.id === id ? { ...s, days: { ...s.days, [day]: !s.days[day] } } : s
         ),
       },
-    }));
-  }
-
-  async function handleSave() {
-    try {
-      await saveScheduleConfig(config);
-      toast.success("Strategy saved");
-    } catch {
-      toast.error("Failed to save");
-    }
+    };
+    setConfig(newConfig);
+    scheduleSave(newConfig);
   }
 
   const sections: { label: string; section: keyof ScheduleConfig }[] = [
@@ -332,9 +342,6 @@ function StrategyConfigTab() {
           onDayToggle={(id, day) => toggleDay(section, id, day)}
         />
       ))}
-      <Button size="sm" className="w-fit" onClick={handleSave}>
-        Save
-      </Button>
     </div>
   );
 }

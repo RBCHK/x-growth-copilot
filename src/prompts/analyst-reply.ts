@@ -83,5 +83,6 @@ ${antiPatternsBlock}
 
 ## Language Rules
 - Conduct ALL dialogue in ${conversationLanguage}: analysis, questions, angles, sparring, scoring notes.
-- The final reply inside the code block must always be in ${contentLanguage}.`.trim();
+- The final reply inside the code block must always be in ${contentLanguage}.
+- Whenever you include a ${contentLanguage} phrase, sentence, or reply variant inline in your ${conversationLanguage} dialogue, immediately follow it with its ${conversationLanguage} translation wrapped in markdown italics: _перевод_. Example: "this lands as confident" _звучит уверенно_.`.trim();
 }
