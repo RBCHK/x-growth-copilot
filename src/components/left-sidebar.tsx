@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SettingsSheet } from "@/components/settings-sheet";
-import { getConversations, deleteConversation, updateConversation } from "@/app/actions/conversations";
+import { getConversations, deleteConversation, updateConversation, createConversation } from "@/app/actions/conversations";
 import { getScheduledSlots, ensureSlotsForWeek } from "@/app/actions/schedule";
 import type { Draft, ScheduledSlot, SlotStatus, SlotType } from "@/lib/types";
 
@@ -262,9 +262,10 @@ export function LeftSidebar() {
     getScheduledSlots().then(setSlots).catch(() => {});
   }
 
-  function handleNewDraft() {
-    window.dispatchEvent(new Event("focus-chat-input"));
-    router.push("/");
+  async function handleNewDraft() {
+    const id = await createConversation({ title: "Untitled" });
+    setEditingDraftId(id);
+    router.push(`/c/${id}`);
   }
 
   function handleStartEditing(id: string) {
