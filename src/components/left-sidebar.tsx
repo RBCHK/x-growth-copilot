@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Settings, Clock, CheckCircle2, Circle, Trash2, MoreHorizontal, Pin, PinOff, Pencil, FileEdit, FilePlus } from "lucide-react";
+import { Settings, Trash2, MoreHorizontal, Pin, PinOff, Pencil, FileEdit, FilePlus, MessageSquare, FileText, AlignLeft, BookOpen } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -13,26 +13,33 @@ import { toast } from "sonner";
 import { SettingsSheet } from "@/components/settings-sheet";
 import { getConversations, deleteConversation, updateConversation } from "@/app/actions/conversations";
 import { getScheduledSlots, ensureSlotsForWeek } from "@/app/actions/schedule";
-import type { ContentType, Draft, ScheduledSlot, SlotStatus } from "@/lib/types";
+import type { Draft, ScheduledSlot, SlotStatus, SlotType } from "@/lib/types";
+
+const slotTypeIcon: Record<SlotType, React.ReactNode> = {
+  Reply: <MessageSquare className="h-3.5 w-3.5 shrink-0" />,
+  Post: <FileText className="h-3.5 w-3.5 shrink-0" />,
+  Thread: <AlignLeft className="h-3.5 w-3.5 shrink-0" />,
+  Article: <BookOpen className="h-3.5 w-3.5 shrink-0" />,
+};
 
 function slotStatusConfig(status: SlotStatus) {
   switch (status) {
     case "empty":
       return {
-        icon: <Circle className="h-3.5 w-3.5 text-muted-foreground" />,
-        className: "border border-border bg-muted/40",
+        className: "border border-border",
+        badgeClassName: "text-muted-foreground",
         label: "Empty",
       };
     case "filled":
       return {
-        icon: <Clock className="h-3.5 w-3.5 text-blue-400" />,
-        className: "border border-border bg-blue-500/10",
+        className: "border border-border",
+        badgeClassName: "text-blue-400",
         label: "Ready",
       };
     case "posted":
       return {
-        icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />,
-        className: "border border-border bg-emerald-500/10",
+        className: "border border-border",
+        badgeClassName: "text-emerald-400",
         label: "Posted",
       };
   }
@@ -193,13 +200,12 @@ function SlotItem({ slot }: { slot: ScheduledSlot }) {
         config.className,
       )}
     >
-      {config.icon}
+      <Badge variant="ghost" className={cn("p-0.5 text-xs font-normal shrink-0", config.badgeClassName)} title={slot.slotType} data-slot-type-badge>
+        {slotTypeIcon[slot.slotType]}
+      </Badge>
       <div className="flex flex-1 flex-col gap-1 overflow-hidden">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium">{slot.timeSlot}</span>
-          <Badge variant="secondary" className="text-xs font-normal">
-            {slot.slotType}
-          </Badge>
         </div>
         {!isEmpty && slot.draftTitle && (
           <span className="line-clamp-1 text-xs text-muted-foreground">
@@ -296,7 +302,7 @@ export function LeftSidebar() {
     <div className="flex h-full flex-col">
       <Tabs
         defaultValue="drafts"
-        className="flex flex-1 flex-col overflow-hidden"
+        className="flex flex-1 flex-col overflow-hidden p-0"
         onValueChange={(v) => v === "scheduled" && refreshSlots()}
       >
         <TabsList className="mx-3 mt-[15px] grid w-auto grid-cols-2">
@@ -374,7 +380,7 @@ export function LeftSidebar() {
         </TabsContent>
 
         <TabsContent value="scheduled" className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full px-2 py-2">
+          <ScrollArea className="h-full pl-2 pt-3 pr-2">
             <div className="flex flex-col gap-4">
               {groupedSlots.map(([dateLabel, slotList]) => (
                 <div key={dateLabel} className="flex flex-col gap-2">

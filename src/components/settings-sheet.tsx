@@ -74,7 +74,7 @@ function VoiceBankTab() {
   const filtered = entries.filter((e) => e.type === activeTab);
 
   return (
-    <div className="flex flex-col gap-4 flex-1 min-h-0">
+    <div className="flex flex-col gap-4 flex-1 min-h-0 p-0">
       <div className="flex flex-col gap-2">
         <Textarea
           placeholder="Paste an example of your writing…"
@@ -125,7 +125,7 @@ function VoiceBankTab() {
       </Tabs>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="flex flex-col gap-2 pr-3">
+        <div className="flex flex-col gap-2 p-0">
           {filtered.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               No {activeTab.toLowerCase()} examples yet
@@ -505,7 +505,7 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
   return (
     <Sheet>
       <SheetTrigger asChild>{children}</SheetTrigger>
-      <SheetContent side="left" className="w-[420px] sm:max-w-[420px] overflow-hidden">
+      <SheetContent side="left" className="w-[420px] sm:max-w-[420px] overflow-hidden p-2">
         <SheetHeader>
           <SheetTitle className="tracking-[-0.02em] font-medium">Settings</SheetTitle>
         </SheetHeader>
@@ -532,7 +532,7 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
             <TabsContent value="voice-bank" className="mt-4 flex-1 min-h-0 flex flex-col">
               <VoiceBankTab />
             </TabsContent>
-            <TabsContent value="strategy" className="mt-4 overflow-y-auto max-h-[calc(100vh-140px)] pr-1">
+            <TabsContent value="strategy" className="mt-4 overflow-y-auto max-h-[calc(100vh-140px)] p-0">
               <StrategyConfigTab />
             </TabsContent>
             <TabsContent value="api-keys" className="mt-4">
