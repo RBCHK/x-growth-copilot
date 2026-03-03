@@ -136,20 +136,26 @@ export async function getScheduledSlots() {
   // Lazy update: mark past FILLED slots as POSTED before returning
   await checkAndUpdatePassedSlots();
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const rows = await prisma.scheduledSlot.findMany({
-    orderBy: [{ date: "asc" }, { timeSlot: "asc" }],
+    where: { date: { gte: today } },
+    orderBy: { date: "asc" },
     include: { conversation: true },
   });
-  return rows.map((r) => ({
-    id: r.id,
-    date: r.date,
-    timeSlot: r.timeSlot,
-    slotType: slotTypeFromPrisma(r.slotType),
-    status: slotStatusFromPrisma(r.status),
-    content: r.content,
-    draftId: r.conversationId ?? undefined,
-    draftTitle: r.conversation?.title ?? undefined,
-  }));
+  return rows
+    .map((r) => ({
+      id: r.id,
+      date: r.date,
+      timeSlot: r.timeSlot,
+      slotType: slotTypeFromPrisma(r.slotType),
+      status: slotStatusFromPrisma(r.status),
+      content: r.content,
+      draftId: r.conversationId ?? undefined,
+      draftTitle: r.conversation?.title ?? undefined,
+    }))
+    .sort((a, b) => getSlotDateTime(a.date, a.timeSlot).getTime() - getSlotDateTime(b.date, b.timeSlot).getTime());
 }
 
 /**
@@ -213,6 +219,7 @@ export type SlotRow = {
 export type ContentSchedule = { slots: SlotRow[] };
 
 export type ScheduleConfig = {
+  replies: ContentSchedule;
   posts: ContentSchedule;
   threads: ContentSchedule;
   articles: ContentSchedule;
@@ -244,6 +251,7 @@ const DAY_TO_JS: Record<DayKey, number> = {
 };
 
 const SECTION_TO_SLOT_TYPE: Record<keyof ScheduleConfig, PrismaSlotType> = {
+  replies: "REPLY",
   posts: "POST",
   threads: "THREAD",
   articles: "ARTICLE",

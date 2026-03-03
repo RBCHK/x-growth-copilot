@@ -29,6 +29,13 @@ See JSDoc in `conversation-context.tsx` for the contract.
 
 **Adding a new ContentType**: use `/add-content-type` skill.
 
+## Testing
+
+- **Framework**: Vitest (`npm test` / `npm run test:watch`)
+- **Test files location**: `src/**/*.test.ts` — currently `src/lib/__tests__/` and `src/app/actions/__tests__/`
+- IMPORTANT: Always check `package.json` and `src/**/*.test.ts` before concluding "no tests exist"
+- When fixing a bug in a utility function, check if a test file exists for it and add a regression test
+
 ## Workflow Rules
 
 IMPORTANT: Before executing any task, check `.claude/skills/` for a relevant skill and use it.

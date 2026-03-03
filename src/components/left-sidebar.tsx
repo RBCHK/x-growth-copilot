@@ -183,29 +183,27 @@ function DraftItem({
 
 function SlotItem({ slot }: { slot: ScheduledSlot }) {
   const config = slotStatusConfig(slot.status);
+  const isEmpty = slot.status === "empty";
 
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-150",
+        "flex items-center gap-3 rounded-lg px-3 transition-colors duration-150",
+        isEmpty ? "py-1.5" : "py-4",
         config.className,
       )}
     >
       {config.icon}
-      <div className="flex flex-1 flex-col gap-2 overflow-hidden">
+      <div className="flex flex-1 flex-col gap-1 overflow-hidden">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium">{slot.timeSlot}</span>
           <Badge variant="secondary" className="text-xs font-normal">
             {slot.slotType}
           </Badge>
         </div>
-        {slot.draftTitle ? (
+        {!isEmpty && slot.draftTitle && (
           <span className="line-clamp-1 text-xs text-muted-foreground">
             {slot.draftTitle}
-          </span>
-        ) : (
-          <span className="text-xs italic text-muted-foreground/60">
-            Empty slot
           </span>
         )}
       </div>

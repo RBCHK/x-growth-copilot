@@ -169,6 +169,7 @@ function formatTime12(time24: string): string {
 }
 
 const DEFAULT_SCHEDULE: ScheduleConfig = {
+  replies: { slots: [] },
   posts: { slots: [] },
   threads: { slots: [] },
   articles: { slots: [] },
@@ -270,7 +271,7 @@ function StrategyConfigTab() {
 
   useEffect(() => {
     getScheduleConfig().then((c) => {
-      if (c) setConfig(c);
+      if (c) setConfig({ ...DEFAULT_SCHEDULE, ...c });
     });
   }, []);
 
@@ -311,6 +312,7 @@ function StrategyConfigTab() {
   }
 
   const sections: { label: string; section: keyof ScheduleConfig }[] = [
+    { label: "Replies", section: "replies" },
     { label: "Posts", section: "posts" },
     { label: "Threads", section: "threads" },
     { label: "Articles", section: "articles" },
