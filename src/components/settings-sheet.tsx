@@ -154,6 +154,112 @@ function VoiceBankTab() {
   );
 }
 
+type TimeSegment = "h" | "m" | "period";
+
+interface TimePickerInputProps {
+  value: string;
+  onChange: (e: { target: { value: string } }) => void;
+  onDone: () => void;
+}
+
+function TimePickerInput({ value, onChange, onDone }: TimePickerInputProps) {
+  const [h24, m24] = value.split(":").map(Number);
+  const [hour, setHour] = useState(h24 % 12 || 12);
+  const [minute, setMinute] = useState(m24);
+  const [period, setPeriod] = useState<"am" | "pm">(h24 >= 12 ? "pm" : "am");
+  const [segment, setSegment] = useState<TimeSegment>("h");
+  const [buffer, setBuffer] = useState("");
+  const hourRef = useRef<HTMLSpanElement>(null);
+  const minuteRef = useRef<HTMLSpanElement>(null);
+  const periodRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => { hourRef.current?.focus(); }, []);
+  useEffect(() => {
+    const refs = { h: hourRef, m: minuteRef, period: periodRef };
+    refs[segment].current?.focus();
+  }, [segment]);
+
+  function submit() {
+    const out = hour === 12
+      ? (period === "am" ? 0 : 12)
+      : (period === "am" ? hour : hour + 12);
+    onChange({ target: { value: `${out.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}` } });
+    onDone();
+  }
+
+  function goTo(seg: TimeSegment) { setBuffer(""); setSegment(seg); }
+
+  function handleHourKey(e: React.KeyboardEvent) {
+    e.preventDefault();
+    if (e.key === "Enter" || e.key === "Tab") { goTo("m"); }
+    else if (e.key === "Escape") { onDone(); }
+    else if (e.key === "ArrowUp") { setHour(h => h === 12 ? 1 : h + 1); }
+    else if (e.key === "ArrowDown") { setHour(h => h === 1 ? 12 : h - 1); }
+    else if (/^\d$/.test(e.key)) {
+      const d = parseInt(e.key);
+      if (buffer === "") {
+        if (d === 0) { setBuffer("0"); setHour(12); }
+        else if (d >= 2) { setHour(d); goTo("m"); }
+        else { setBuffer("1"); setHour(1); }
+      } else {
+        const h = buffer === "0" ? (d === 0 ? 12 : d) : Math.min(10 + d, 12);
+        setHour(h); goTo("m");
+      }
+    }
+  }
+
+  function handleMinuteKey(e: React.KeyboardEvent) {
+    e.preventDefault();
+    if (e.key === "Enter" || e.key === "Tab") { if (buffer) setMinute(parseInt(buffer)); goTo("period"); }
+    else if (e.key === "Escape") { onDone(); }
+    else if (e.key === "ArrowUp") { setMinute(m => m === 59 ? 0 : m + 1); }
+    else if (e.key === "ArrowDown") { setMinute(m => m === 0 ? 59 : m - 1); }
+    else if (/^\d$/.test(e.key)) {
+      const d = parseInt(e.key);
+      if (buffer === "") {
+        if (d >= 6) { setMinute(d); goTo("period"); }
+        else { setBuffer(e.key); setMinute(d); }
+      } else {
+        setMinute(parseInt(buffer) * 10 + d); goTo("period");
+      }
+    }
+  }
+
+  function handlePeriodKey(e: React.KeyboardEvent) {
+    e.preventDefault();
+    if (e.key === "Enter") { submit(); }
+    else if (e.key === "Escape") { onDone(); }
+    else if (e.key === "a" || e.key === "A") { setPeriod("am"); }
+    else if (e.key === "p" || e.key === "P") { setPeriod("pm"); }
+    else if (e.key === " " || e.key === "ArrowUp" || e.key === "ArrowDown") {
+      setPeriod(p => p === "am" ? "pm" : "am");
+    }
+  }
+
+  const displayHour = (buffer && segment === "h")
+    ? buffer.padStart(2, "0")
+    : hour.toString().padStart(2, "0");
+
+  const s = (seg: TimeSegment) =>
+    `rounded px-0.5 cursor-default select-none outline-none ${segment === seg ? "bg-blue-500 text-white" : "text-foreground/80 hover:text-foreground"}`;
+
+  return (
+    <div className="flex items-center text-sm font-mono">
+      <span ref={hourRef} tabIndex={0} onKeyDown={handleHourKey} onClick={() => goTo("h")} className={s("h")}>
+        {displayHour}
+      </span>
+      <span className="text-foreground/30">:</span>
+      <span ref={minuteRef} tabIndex={0} onKeyDown={handleMinuteKey} onClick={() => goTo("m")} className={s("m")}>
+        {minute.toString().padStart(2, "0")}
+      </span>
+      <span className="mx-1" />
+      <span ref={periodRef} tabIndex={0} onKeyDown={handlePeriodKey} onClick={() => goTo("period")} className={s("period")}>
+        {period}
+      </span>
+    </div>
+  );
+}
+
 const DAYS: DayKey[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function emptyDays(): Record<DayKey, boolean> {
@@ -179,7 +285,7 @@ interface ScheduleSectionProps {
   label: string;
   section: keyof ScheduleConfig;
   slots: SlotRow[];
-  onAdd: () => void;
+  onAdd: () => string;
   onRemove: (id: string) => void;
   onTimeChange: (id: string, time: string) => void;
   onDayToggle: (id: string, day: DayKey) => void;
@@ -205,14 +311,10 @@ function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayTog
           <div key={slot.id} className="grid grid-cols-[130px_repeat(7,1fr)] border-t border-border items-center px-1">
             <div className="flex items-center gap-1.5 px-3 py-3.5">
               {editingId === slot.id ? (
-                <input
-                  type="time"
-                  autoFocus
+                <TimePickerInput
                   value={slot.time}
                   onChange={(e) => onTimeChange(slot.id, e.target.value)}
-                  onBlur={() => setEditingId(null)}
-                  onKeyDown={(e) => e.key === "Enter" && setEditingId(null)}
-                  className="w-[80px] bg-transparent text-sm outline-none text-foreground scheme-dark"
+                  onDone={() => setEditingId(null)}
                 />
               ) : (
                 <button
@@ -255,7 +357,7 @@ function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayTog
         {/* Add row */}
         <div className="border-t border-border">
           <button
-            onClick={onAdd}
+            onClick={() => setEditingId(onAdd())}
             className="flex items-center gap-1.5 px-4 py-3 text-muted-foreground/60 hover:text-foreground transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -288,9 +390,10 @@ function StrategyConfigTab() {
     }, 300);
   }
 
-  function addSlot(section: keyof ScheduleConfig) {
-    const newSlot: SlotRow = { id: crypto.randomUUID(), time: "10:00", days: emptyDays() };
+  function addSlot(section: keyof ScheduleConfig): string {
+    const newSlot: SlotRow = { id: crypto.randomUUID(), time: "00:00", days: emptyDays() };
     setConfig((prev) => ({ ...prev, [section]: { slots: [...prev[section].slots, newSlot] } }));
+    return newSlot.id;
   }
 
   function removeSlot(section: keyof ScheduleConfig, id: string) {
