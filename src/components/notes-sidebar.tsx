@@ -49,9 +49,10 @@ export function NotesSidebar({ onClose }: NotesSidebarProps) {
             {notes.map((note) => (
               <div
                 key={note.id}
-                className="group relative rounded-xl border border-border bg-white/[0.03] px-4 py-3 transition-colors duration-150"
+                className="group relative rounded-xl bg-white/[0.03] px-4 py-3 transition-colors duration-150 overflow-hidden"
+                style={{ width: "150px", height: "120px" }}
               >
-                <p className="pr-6 text-sm leading-relaxed">{note.content}</p>
+                <p className="pr-6 text-sm leading-relaxed line-clamp-4">{note.content}</p>
                 <Button
                   variant="ghost"
                   size="icon"

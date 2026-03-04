@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Settings, Trash2, MoreHorizontal, Pin, PinOff, Pencil, FileEdit, FilePlus, MessageSquare, FileText, AlignLeft, BookOpen } from "lucide-react";
+import { Settings, Trash2, MoreHorizontal, Pin, PinOff, Pencil, FileEdit, FilePlus, MessageSquare, FileText, AlignLeft, BookOpen, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -217,12 +217,13 @@ function SlotItem({ slot }: { slot: ScheduledSlot }) {
   );
 }
 
-export function LeftSidebar() {
+export function LeftSidebar({ collapsed, onExpand }: { collapsed?: boolean; onExpand?: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [slots, setSlots] = useState<ScheduledSlot[]>([]);
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"drafts" | "scheduled">("drafts");
   const fetchSeqRef = useRef(0);
 
   const activeDraftId = pathname.startsWith("/c/")
@@ -299,12 +300,38 @@ export function LeftSidebar() {
   const unpinnedDrafts = drafts.filter((d) => !d.pinned);
   const groupedSlots = groupSlotsByDate(slots);
 
+  if (collapsed) {
+    return (
+      <div className="flex h-full flex-col items-center gap-1 py-3">
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleNewDraft} title="New Draft">
+          <FilePlus className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => { setActiveTab("drafts"); onExpand?.(); }} title="Drafts">
+          <FileEdit className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => { setActiveTab("scheduled"); onExpand?.(); }} title="Scheduled">
+          <Calendar className="h-4 w-4" />
+        </Button>
+        <div className="mt-auto">
+          <SettingsSheet>
+            <Button variant="ghost" size="icon" className="h-9 w-9" title="Settings">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </SettingsSheet>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
       <Tabs
-        defaultValue="drafts"
+        value={activeTab}
         className="flex flex-1 flex-col overflow-hidden p-0"
-        onValueChange={(v) => v === "scheduled" && refreshSlots()}
+        onValueChange={(v) => {
+          setActiveTab(v as "drafts" | "scheduled");
+          if (v === "scheduled") refreshSlots();
+        }}
       >
         <TabsList className="mx-3 mt-[15px] grid w-auto grid-cols-2">
           <TabsTrigger value="drafts">Drafts</TabsTrigger>

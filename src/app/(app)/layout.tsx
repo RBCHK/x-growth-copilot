@@ -1,4 +1,4 @@
-import { LeftSidebar } from "@/components/left-sidebar";
+import { LeftSidebarContainer } from "@/components/left-sidebar-container";
 import { MobileSidebar } from "@/components/mobile-sidebar";
 import { AppHeader } from "@/components/app-header";
 
@@ -11,9 +11,7 @@ export default function AppLayout({
     <div className="flex h-screen overflow-hidden">
       <MobileSidebar />
 
-      <aside className="hidden w-[420px] shrink-0 border-r border-border bg-sidebar md:flex md:flex-col">
-        <LeftSidebar />
-      </aside>
+      <LeftSidebarContainer />
 
       <main className="flex flex-1 flex-col overflow-hidden">
         <AppHeader />
