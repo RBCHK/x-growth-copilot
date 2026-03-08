@@ -5,24 +5,37 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useConversation } from "@/contexts/conversation-context";
+import type { Note } from "@/lib/types";
 
 interface NotesSidebarProps {
   onClose?: () => void;
 }
 
 export function NotesSidebar({ onClose }: NotesSidebarProps) {
-  const { notes, removeNote, addNote } = useConversation();
+  const { notes, removeNote, addNote, updateNote } = useConversation();
   const [modalOpen, setModalOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
 
   function closeModal() {
     setNoteText("");
+    setEditingNote(null);
     setModalOpen(false);
   }
 
-  function handleAddNote() {
-    if (noteText.trim()) {
-      addNote(noteText.trim());
+  function openEditModal(note: Note) {
+    setEditingNote(note);
+    setNoteText(note.content);
+    setModalOpen(true);
+  }
+
+  function handleSaveNote() {
+    const text = noteText.trim();
+    if (!text) return closeModal();
+    if (editingNote) {
+      updateNote(editingNote.id, text);
+    } else {
+      addNote(text);
     }
     closeModal();
   }
@@ -61,15 +74,16 @@ export function NotesSidebar({ onClose }: NotesSidebarProps) {
             {notes.map((note) => (
               <div
                 key={note.id}
-                className="group relative rounded-xl bg-white/[0.03] px-2.5 pb-2 pt-2 transition-colors duration-150 overflow-hidden"
+                className="group relative cursor-pointer rounded-xl bg-white/3 px-2.5 pb-2 pt-2 transition-colors duration-150 overflow-hidden hover:bg-white/6"
                 style={{ height: "125px" }}
+                onClick={() => openEditModal(note)}
               >
                 <p className="h-full text-xs leading-relaxed line-clamp-4">{note.content}</p>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="absolute right-2 top-2 h-6 w-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                  onClick={() => removeNote(note.id)}
+                  onClick={(e) => { e.stopPropagation(); removeNote(note.id); }}
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -88,7 +102,7 @@ export function NotesSidebar({ onClose }: NotesSidebarProps) {
             className="flex h-[500px] w-[750px] flex-col gap-4 rounded-2xl bg-[#1a1a1a] p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="shrink-0 text-sm font-medium">New Note</h3>
+            <h3 className="shrink-0 text-sm font-medium">{editingNote ? "Edit Note" : "New Note"}</h3>
             <textarea
               className="min-h-0 flex-1 resize-none rounded-xl border border-border bg-white/5 px-4 py-3 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50 focus:ring-1 focus:ring-white/20"
               placeholder="Type your note..."
@@ -100,8 +114,8 @@ export function NotesSidebar({ onClose }: NotesSidebarProps) {
               <Button variant="ghost" size="sm" onClick={closeModal}>
                 Cancel
               </Button>
-              <Button size="sm" onClick={handleAddNote} disabled={!noteText.trim()}>
-                Add Note
+              <Button size="sm" onClick={handleSaveNote} disabled={!noteText.trim()}>
+                {editingNote ? "Save" : "Add Note"}
               </Button>
             </div>
           </div>

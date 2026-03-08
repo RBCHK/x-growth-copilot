@@ -16,6 +16,7 @@ import type { ContentType, Message, Note } from "@/lib/types";
 import {
   addNote as addNoteAction,
   removeNote as removeNoteAction,
+  updateNote as updateNoteAction,
   clearNotes as clearNotesAction,
 } from "@/app/actions/notes";
 import { addMessage } from "@/app/actions/conversations";
@@ -35,6 +36,7 @@ interface ConversationContextValue {
   sendMessage: () => void;
   addNote: (content: string) => void;
   removeNote: (id: string) => void;
+  updateNote: (id: string, content: string) => void;
   clearNotes: () => void;
 }
 
@@ -203,6 +205,19 @@ export function ConversationProvider({
     [conversationId, router]
   );
 
+  const updateNote = useCallback(
+    async (id: string, content: string) => {
+      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, content } : n)));
+      try {
+        await updateNoteAction(id, content, conversationId);
+      } catch {
+        router.refresh();
+      }
+      router.refresh();
+    },
+    [conversationId, router]
+  );
+
   const clearNotes = useCallback(async () => {
     setNotes([]);
     await clearNotesAction(conversationId);
@@ -224,6 +239,7 @@ export function ConversationProvider({
         sendMessage,
         addNote,
         removeNote,
+        updateNote,
         clearNotes,
       }}
     >

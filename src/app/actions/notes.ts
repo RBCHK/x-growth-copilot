@@ -28,6 +28,11 @@ export async function removeNote(id: string, conversationId: string) {
   revalidatePath(`/c/${conversationId}`);
 }
 
+export async function updateNote(id: string, content: string, conversationId: string) {
+  await prisma.note.update({ where: { id }, data: { content } });
+  revalidatePath(`/c/${conversationId}`);
+}
+
 export async function clearNotes(conversationId: string) {
   await prisma.note.deleteMany({ where: { conversationId } });
   revalidatePath(`/c/${conversationId}`);
