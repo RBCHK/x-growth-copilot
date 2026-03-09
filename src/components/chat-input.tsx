@@ -16,6 +16,7 @@ interface ChatInputProps {
   onContentTypeChange: (type: ContentType) => void;
   onSend: () => void;
   disabled?: boolean;
+  isFetchingTweet?: boolean;
   autoFocus?: boolean;
 }
 
@@ -26,6 +27,7 @@ export function ChatInput({
   onContentTypeChange,
   onSend,
   disabled,
+  isFetchingTweet,
   autoFocus,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -83,10 +85,17 @@ export function ChatInput({
               disabled={disabled}
             />
 
-            <SendMessageButton
-              onClick={onSend}
-              disabled={disabled || !value.trim()}
-            />
+            <div className="flex items-center gap-3">
+              {isFetchingTweet && (
+                <span className="text-xs text-muted-foreground animate-pulse">
+                  Loading tweet…
+                </span>
+              )}
+              <SendMessageButton
+                onClick={onSend}
+                disabled={disabled || !value.trim()}
+              />
+            </div>
           </div>
         </div>
       </div>

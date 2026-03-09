@@ -6,7 +6,7 @@ import { TextSelectionPopup } from "@/components/text-selection-popup";
 import { useConversation } from "@/contexts/conversation-context";
 
 export function ConversationView() {
-  const { input, contentType, isLoading, error, setInput, setContentType, sendMessage } =
+  const { input, contentType, isLoading, isFetchingTweet, error, setInput, setContentType, sendMessage } =
     useConversation();
 
   return (
@@ -26,6 +26,7 @@ export function ConversationView() {
         onContentTypeChange={setContentType}
         onSend={sendMessage}
         disabled={isLoading}
+        isFetchingTweet={isFetchingTweet}
       />
       <TextSelectionPopup />
     </div>

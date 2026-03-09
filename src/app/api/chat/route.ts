@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     model: modelParam,
     conversationLanguage,
     contentLanguage,
+    tweetContext: clientTweetContext,
   }: {
     messages: UIMessage[];
     contentType: ContentType;
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
     model?: string;
     conversationLanguage?: string;
     contentLanguage?: string;
+    tweetContext?: string;
   } = body;
 
   function resolveLanguageLabel(value: string | undefined, defaultLabel: string): string {
@@ -56,17 +58,23 @@ export async function POST(req: NextRequest) {
   ]);
   const voiceBank = voiceBankEntries.map((e) => e.content);
 
-  // Check first user message for tweet URL, inject as extra system context
+  // Inject tweet text as extra system context.
+  // Client pre-fetches from browser (avoids Twitter blocking Vercel/AWS IPs).
+  // Fall back to server-side fetch for local dev or older clients.
   let tweetContext = "";
-  const firstUserMsg = messages.find((m) => m.role === "user");
-  if (firstUserMsg) {
-    const firstText = firstUserMsg.parts
-      .filter((p) => p.type === "text")
-      .map((p) => (p as { type: "text"; text: string }).text)
-      .join("");
-    const tweet = await fetchTweetFromText(firstText);
-    if (tweet) {
-      tweetContext = `\n\n## Original Post (fetched from URL)\n${tweet.text}`;
+  if (clientTweetContext) {
+    tweetContext = `\n\n## Original Post (fetched from URL)\n${clientTweetContext}`;
+  } else {
+    const firstUserMsg = messages.find((m) => m.role === "user");
+    if (firstUserMsg) {
+      const firstText = firstUserMsg.parts
+        .filter((p) => p.type === "text")
+        .map((p) => (p as { type: "text"; text: string }).text)
+        .join("");
+      const tweet = await fetchTweetFromText(firstText);
+      if (tweet) {
+        tweetContext = `\n\n## Original Post (fetched from URL)\n${tweet.text}`;
+      }
     }
   }
 

@@ -21,6 +21,7 @@ import {
 } from "@/app/actions/notes";
 import { addMessage } from "@/app/actions/conversations";
 import { getStoredModel, getStoredLanguageSettings } from "@/components/settings-sheet";
+import { fetchTweetFromText } from "@/lib/parse-tweet";
 
 interface ConversationContextValue {
   conversationId: string;
@@ -29,6 +30,7 @@ interface ConversationContextValue {
   contentType: ContentType;
   input: string;
   isLoading: boolean;
+  isFetchingTweet: boolean;
   error: Error | undefined;
 
   setInput: (value: string) => void;
@@ -86,11 +88,13 @@ export function ConversationProvider({
     initialData?.contentType ?? "Reply"
   );
   const [input, setInput] = useState("");
+  const [isFetchingTweet, setIsFetchingTweet] = useState(false);
   const router = useRouter();
 
   // Refs so the transport body closure always reads latest values
   const notesRef = useRef(notes);
   const contentTypeRef = useRef(contentType);
+  const tweetContextRef = useRef("");
   notesRef.current = notes;
   contentTypeRef.current = contentType;
 
@@ -108,17 +112,26 @@ export function ConversationProvider({
             model: getStoredModel(),
             conversationLanguage: lang.conversationLanguage,
             contentLanguage: lang.contentLanguage,
+            tweetContext: tweetContextRef.current,
           };
         },
       })
   );
 
-  const initialMessages: UIMessage[] = (initialData?.messages ?? []).map((m) => ({
-    id: m.id,
-    role: m.role as "user" | "assistant",
-    parts: [{ type: "text" as const, text: m.content }],
-    metadata: undefined,
-  }));
+  // For auto-start (1 user message, no reply yet), pass empty initialMessages so
+  // aiSendMessage can add it once. Otherwise useChat would show it twice.
+  const isAutoStart =
+    (initialData?.messages ?? []).length === 1 &&
+    initialData?.messages?.[0]?.role === "user";
+
+  const initialMessages: UIMessage[] = isAutoStart
+    ? []
+    : (initialData?.messages ?? []).map((m) => ({
+        id: m.id,
+        role: m.role as "user" | "assistant",
+        parts: [{ type: "text" as const, text: m.content }],
+        metadata: undefined,
+      }));
 
   const { messages: aiMessages, sendMessage: aiSendMessage, status, error } = useChat({
     transport,
@@ -132,7 +145,7 @@ export function ConversationProvider({
     },
   });
 
-  const isLoading = status === "submitted" || status === "streaming";
+  const isLoading = status === "submitted" || status === "streaming" || isFetchingTweet;
 
   // Reset notes and contentType when conversation changes
   useEffect(() => {
@@ -145,13 +158,20 @@ export function ConversationProvider({
     setContentType(initialData?.contentType ?? "Reply");
   }, [conversationId, initialData]);
 
-  // Map AI SDK UIMessage[] to our Message type
-  const messages: Message[] = aiMessages.map((m) => ({
-    id: m.id,
-    role: m.role as "user" | "assistant",
-    content: getTextFromUIMessage(m),
-    createdAt: new Date(),
-  }));
+  // Map AI SDK UIMessage[] to our Message type.
+  // During auto-start, aiMessages is empty until aiSendMessage fires — fall back to initialData.
+  const messages: Message[] =
+    aiMessages.length > 0
+      ? aiMessages.map((m) => ({
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          content: getTextFromUIMessage(m),
+          createdAt: new Date(),
+        }))
+      : (initialData?.messages ?? []).map((m) => ({
+          ...m,
+          createdAt: m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt as string),
+        }));
 
   // Auto-start AI for new conversations (exactly 1 user message, no assistant reply yet).
   // hasSentInitial guards against StrictMode double-invoke and future re-renders.
@@ -162,7 +182,13 @@ export function ConversationProvider({
     const msgs = initialData?.messages ?? [];
     if (msgs.length === 1 && msgs[0].role === "user") {
       hasSentInitial.current = true;
-      aiSendMessage({ text: msgs[0].content });
+      const text = msgs[0].content;
+      (async () => {
+        const tweet = await fetchTweetFromText(text);
+        tweetContextRef.current = tweet ? tweet.text : "";
+        aiSendMessage({ text });
+        tweetContextRef.current = "";
+      })();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -170,11 +196,17 @@ export function ConversationProvider({
     const text = input.trim();
     if (!text || isLoading) return;
     setInput("");
+    // Pre-fetch tweet from client (avoids Twitter blocking Vercel/AWS IPs)
+    setIsFetchingTweet(true);
+    const tweet = await fetchTweetFromText(text);
+    tweetContextRef.current = tweet ? tweet.text : "";
+    setIsFetchingTweet(false);
     // Save user message to DB
     await addMessage(conversationId, "user", text);
     window.dispatchEvent(new Event("drafts-updated"));
-    // Send to AI (transport body closure provides notes + contentType)
+    // Send to AI (transport body closure provides notes + contentType + tweetContext)
     aiSendMessage({ text });
+    tweetContextRef.current = "";
   }, [input, isLoading, conversationId, aiSendMessage]);
 
   const addNote = useCallback(
@@ -233,6 +265,7 @@ export function ConversationProvider({
         contentType,
         input,
         isLoading,
+        isFetchingTweet,
         error,
         setInput,
         setContentType,
