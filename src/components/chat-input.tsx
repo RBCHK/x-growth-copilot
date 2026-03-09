@@ -3,6 +3,7 @@
 import { useRef, useCallback, useLayoutEffect, useEffect, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { ContentTypeDropdown } from "@/components/content-type-dropdown";
+import { ModelDropdown } from "@/components/model-dropdown";
 import { SendMessageButton } from "@/components/send-message-button";
 import { type ContentType } from "@/lib/types";
 
@@ -91,6 +92,7 @@ export function ChatInput({
                   Loading tweet…
                 </span>
               )}
+              <ModelDropdown disabled={disabled} />
               <SendMessageButton
                 onClick={onSend}
                 disabled={disabled || !value.trim()}

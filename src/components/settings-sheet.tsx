@@ -31,6 +31,7 @@ import {
   type ScheduleConfig,
 } from "@/app/actions/schedule";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage, type LanguageSettings } from "@/lib/types";
+import { MODEL_OPTIONS, MODEL_STORAGE_KEY, getStoredModel } from "@/lib/model";
 
 interface VoiceBankEntry {
   id: string;
@@ -534,17 +535,6 @@ function StrategyConfigTab() {
   );
 }
 
-const MODEL_OPTIONS = [
-  { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-  { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
-] as const;
-
-const MODEL_STORAGE_KEY = "xreba_model";
-
-export function getStoredModel(): string {
-  if (typeof window === "undefined") return MODEL_OPTIONS[0].value;
-  return localStorage.getItem(MODEL_STORAGE_KEY) ?? MODEL_OPTIONS[0].value;
-}
 
 const LANGUAGE_STORAGE_KEY = "xreba_language";
 

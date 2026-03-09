@@ -20,7 +20,8 @@ import {
   clearNotes as clearNotesAction,
 } from "@/app/actions/notes";
 import { addMessage } from "@/app/actions/conversations";
-import { getStoredModel, getStoredLanguageSettings } from "@/components/settings-sheet";
+import { getStoredModel } from "@/lib/model";
+import { getStoredLanguageSettings } from "@/components/settings-sheet";
 import { fetchTweetFromText } from "@/lib/parse-tweet";
 
 interface ConversationContextValue {
