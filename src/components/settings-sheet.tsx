@@ -179,11 +179,15 @@ function TimePickerInput({ value, onChange, onDone }: TimePickerInputProps) {
     refs[segment].current?.focus();
   }, [segment]);
 
-  function submit() {
+  function commitValue() {
     const out = hour === 12
       ? (period === "am" ? 0 : 12)
       : (period === "am" ? hour : hour + 12);
     onChange({ target: { value: `${out.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}` } });
+  }
+
+  function submit() {
+    commitValue();
     onDone();
   }
 
@@ -244,7 +248,10 @@ function TimePickerInput({ value, onChange, onDone }: TimePickerInputProps) {
     `rounded px-0.5 cursor-default select-none outline-none ${segment === seg ? "bg-blue-500 text-white" : "text-foreground/80 hover:text-foreground"}`;
 
   return (
-    <div className="flex items-center text-sm font-mono">
+    <div
+      className="flex items-center text-sm font-mono"
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) commitValue(); }}
+    >
       <span ref={hourRef} tabIndex={0} onKeyDown={handleHourKey} onClick={() => goTo("h")} className={s("h")}>
         {displayHour}
       </span>
@@ -289,9 +296,11 @@ interface ScheduleSectionProps {
   onRemove: (id: string) => void;
   onTimeChange: (id: string, time: string) => void;
   onDayToggle: (id: string, day: DayKey) => void;
+  onAllDaysToggle: (id: string, value: boolean) => void;
+  onTimeEditDone: () => void;
 }
 
-function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayToggle }: ScheduleSectionProps) {
+function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayToggle, onAllDaysToggle, onTimeEditDone }: ScheduleSectionProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
@@ -299,22 +308,34 @@ function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayTog
       <p className="text-sm font-medium">{label}</p>
       <div className="rounded-xl border border-border overflow-hidden">
         {/* Header */}
-        <div className="grid grid-cols-[130px_repeat(7,1fr)] bg-muted/20 px-1">
+        <div className="grid grid-cols-[110px_repeat(8,1fr)] bg-muted/20 px-1">
           <div className="px-3 py-3 text-xs text-muted-foreground">Time</div>
+          <div className="py-3 text-center text-xs font-semibold text-blue-400">All</div>
           {DAYS.map((d) => (
             <div key={d} className="py-3 text-center text-xs font-semibold text-muted-foreground">{d}</div>
           ))}
         </div>
 
         {/* Rows */}
-        {slots.map((slot) => (
-          <div key={slot.id} className="grid grid-cols-[130px_repeat(7,1fr)] border-t border-border items-center px-1">
-            <div className="flex items-center gap-1.5 px-3 py-3.5">
+        {slots.map((slot) => {
+          const allChecked = DAYS.every((d) => slot.days[d]);
+          return (
+          <div
+            key={slot.id}
+            className="grid grid-cols-[110px_repeat(8,1fr)] border-t border-border items-center px-1"
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node) && editingId === slot.id) {
+                setEditingId(null);
+                onTimeEditDone();
+              }
+            }}
+          >
+            <div className="flex items-center gap-1.5 px-3 py-3">
               {editingId === slot.id ? (
                 <TimePickerInput
                   value={slot.time}
                   onChange={(e) => onTimeChange(slot.id, e.target.value)}
-                  onDone={() => setEditingId(null)}
+                  onDone={() => { setEditingId(null); onTimeEditDone(); }}
                 />
               ) : (
                 <button
@@ -331,20 +352,41 @@ function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayTog
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
+            {/* All days toggle */}
+            <div className="flex justify-center py-3">
+              <button
+                role="checkbox"
+                aria-checked={allChecked}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onAllDaysToggle(slot.id, !allChecked)}
+                className={`h-5 w-5 rounded-md border-2 flex items-center justify-center transition-all duration-150 ${
+                  allChecked
+                    ? "bg-blue-500 border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]"
+                    : "border-border/60 bg-muted/30 hover:border-border"
+                }`}
+              >
+                {allChecked && (
+                  <svg viewBox="0 0 12 12" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="2,6 5,9 10,3" />
+                  </svg>
+                )}
+              </button>
+            </div>
             {DAYS.map((day) => (
-              <div key={day} className="flex justify-center py-3.5">
+              <div key={day} className="flex justify-center py-3">
                 <button
                   role="checkbox"
                   aria-checked={slot.days[day]}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => onDayToggle(slot.id, day)}
-                  className={`h-6 w-6 rounded-lg border-2 flex items-center justify-center transition-all duration-150 ${
+                  className={`h-5 w-5 rounded-md border-2 flex items-center justify-center transition-all duration-150 ${
                     slot.days[day]
                       ? "bg-blue-500 border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]"
                       : "border-border/60 bg-muted/30 hover:border-border"
                   }`}
                 >
                   {slot.days[day] && (
-                    <svg viewBox="0 0 12 12" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg viewBox="0 0 12 12" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="2,6 5,9 10,3" />
                     </svg>
                   )}
@@ -352,7 +394,8 @@ function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayTog
               </div>
             ))}
           </div>
-        ))}
+          );
+        })}
 
         {/* Add row */}
         <div className="border-t border-border">
@@ -370,11 +413,16 @@ function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayTog
 
 function StrategyConfigTab() {
   const [config, setConfig] = useState<ScheduleConfig>(DEFAULT_SCHEDULE);
+  const configRef = useRef<ScheduleConfig>(DEFAULT_SCHEDULE);
   const pendingSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getScheduleConfig().then((c) => {
-      if (c) setConfig({ ...DEFAULT_SCHEDULE, ...c });
+      if (c) {
+        const merged = { ...DEFAULT_SCHEDULE, ...c };
+        configRef.current = merged;
+        setConfig(merged);
+      }
     });
   }, []);
 
@@ -390,36 +438,71 @@ function StrategyConfigTab() {
     }, 300);
   }
 
+  function sortedSlots(slots: SlotRow[]): SlotRow[] {
+    return [...slots].sort((a, b) => a.time.localeCompare(b.time));
+  }
+
   function addSlot(section: keyof ScheduleConfig): string {
     const newSlot: SlotRow = { id: crypto.randomUUID(), time: "00:00", days: emptyDays() };
-    setConfig((prev) => ({ ...prev, [section]: { slots: [...prev[section].slots, newSlot] } }));
+    const newConfig = { ...configRef.current, [section]: { slots: [...configRef.current[section].slots, newSlot] } };
+    configRef.current = newConfig;
+    setConfig(newConfig);
     return newSlot.id;
   }
 
   function removeSlot(section: keyof ScheduleConfig, id: string) {
-    const newConfig = { ...config, [section]: { slots: config[section].slots.filter((s) => s.id !== id) } };
+    const newConfig = { ...configRef.current, [section]: { slots: configRef.current[section].slots.filter((s) => s.id !== id) } };
+    configRef.current = newConfig;
     setConfig(newConfig);
     scheduleSave(newConfig);
   }
 
+  // Updates time in place — no sort, no save (save happens in finishTimeEdit)
   function updateTime(section: keyof ScheduleConfig, id: string, time: string) {
     const newConfig = {
-      ...config,
-      [section]: { slots: config[section].slots.map((s) => (s.id === id ? { ...s, time } : s)) },
+      ...configRef.current,
+      [section]: { slots: configRef.current[section].slots.map((s) => (s.id === id ? { ...s, time } : s)) },
     };
+    configRef.current = newConfig;
+    setConfig(newConfig);
+  }
+
+  // Called when time editing is done — sorts and saves
+  function finishTimeEdit(section: keyof ScheduleConfig) {
+    const newConfig = {
+      ...configRef.current,
+      [section]: { slots: sortedSlots(configRef.current[section].slots) },
+    };
+    configRef.current = newConfig;
     setConfig(newConfig);
     scheduleSave(newConfig);
   }
 
   function toggleDay(section: keyof ScheduleConfig, id: string, day: DayKey) {
     const newConfig = {
-      ...config,
+      ...configRef.current,
       [section]: {
-        slots: config[section].slots.map((s) =>
+        slots: configRef.current[section].slots.map((s) =>
           s.id === id ? { ...s, days: { ...s.days, [day]: !s.days[day] } } : s
         ),
       },
     };
+    configRef.current = newConfig;
+    setConfig(newConfig);
+    scheduleSave(newConfig);
+  }
+
+  function toggleAllDays(section: keyof ScheduleConfig, id: string, value: boolean) {
+    const allDays: Record<DayKey, boolean> = { Mon: value, Tue: value, Wed: value, Thu: value, Fri: value, Sat: value, Sun: value };
+    const newConfig = {
+      ...configRef.current,
+      [section]: {
+        slots: configRef.current[section].slots.map((s) =>
+          s.id === id ? { ...s, days: allDays } : s
+        ),
+      },
+    };
+    configRef.current = newConfig;
     setConfig(newConfig);
     scheduleSave(newConfig);
   }
@@ -443,6 +526,8 @@ function StrategyConfigTab() {
           onRemove={(id) => removeSlot(section, id)}
           onTimeChange={(id, time) => updateTime(section, id, time)}
           onDayToggle={(id, day) => toggleDay(section, id, day)}
+          onAllDaysToggle={(id, value) => toggleAllDays(section, id, value)}
+          onTimeEditDone={() => finishTimeEdit(section)}
         />
       ))}
     </div>

@@ -93,6 +93,7 @@ model ScheduledSlot {
   status         SlotStatus @default(EMPTY)
   content        String?
   conversationId String?
+  postedAt       DateTime?
 
   conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 }

@@ -157,6 +157,7 @@ export async function getScheduledSlots() {
       content: r.content,
       draftId: r.conversationId ?? undefined,
       draftTitle: r.conversation?.title ?? undefined,
+      postedAt: r.postedAt ?? undefined,
     }))
     .sort((a, b) => getSlotDateTime(a.date, a.timeSlot).getTime() - getSlotDateTime(b.date, b.timeSlot).getTime());
 }
@@ -331,23 +332,15 @@ async function regenerateSlotsFromConfig(config: ScheduleConfig) {
   }
 }
 
-function formatCurrentTime(): string {
-  const now = new Date();
-  const h = now.getHours();
-  const m = now.getMinutes();
-  const period = h >= 12 ? "PM" : "AM";
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
-}
 
-export async function toggleSlotPosted(id: string): Promise<{ timeSlot?: string; status: "POSTED" | "FILLED" | "EMPTY" }> {
+export async function toggleSlotPosted(id: string): Promise<{ postedAt?: Date; status: "POSTED" | "FILLED" | "EMPTY" }> {
   const slot = await prisma.scheduledSlot.findUnique({ where: { id } });
   if (!slot) throw new Error("Slot not found");
 
   if (slot.status === "POSTED") {
     // Revert: if had a draft → FILLED, otherwise → EMPTY
     const newStatus = slot.conversationId ? "FILLED" : "EMPTY";
-    await prisma.scheduledSlot.update({ where: { id }, data: { status: newStatus } });
+    await prisma.scheduledSlot.update({ where: { id }, data: { status: newStatus, postedAt: null } });
     if (slot.conversationId) {
       await prisma.conversation.update({
         where: { id: slot.conversationId },
@@ -357,8 +350,8 @@ export async function toggleSlotPosted(id: string): Promise<{ timeSlot?: string;
     revalidatePath("/");
     return { status: newStatus };
   } else {
-    const timeSlot = formatCurrentTime();
-    await prisma.scheduledSlot.update({ where: { id }, data: { status: "POSTED", timeSlot } });
+    const postedAt = new Date();
+    await prisma.scheduledSlot.update({ where: { id }, data: { status: "POSTED", postedAt } });
     if (slot.conversationId) {
       await prisma.conversation.update({
         where: { id: slot.conversationId },
@@ -366,7 +359,7 @@ export async function toggleSlotPosted(id: string): Promise<{ timeSlot?: string;
       });
     }
     revalidatePath("/");
-    return { timeSlot, status: "POSTED" };
+    return { postedAt, status: "POSTED" };
   }
 }
 

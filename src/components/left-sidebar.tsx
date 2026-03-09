@@ -224,6 +224,11 @@ function SlotItem({
       <div className="flex flex-1 flex-col gap-1 overflow-hidden">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium">{slot.timeSlot}</span>
+          {slot.status === "posted" && slot.postedAt && (
+            <span className="text-xs text-muted-foreground">
+              → {slot.postedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+            </span>
+          )}
         </div>
         {!isEmpty && slot.draftTitle && (
           <span className="line-clamp-1 text-xs text-muted-foreground">
@@ -337,7 +342,7 @@ export function LeftSidebar({ collapsed, onExpand }: { collapsed?: boolean; onEx
       setSlots((prev) => prev.map((s) => {
         if (s.id !== id) return s;
         const newStatus = result.status.toLowerCase() as SlotStatus;
-        return { ...s, status: newStatus, ...(result.timeSlot ? { timeSlot: result.timeSlot } : {}) };
+        return { ...s, status: newStatus, postedAt: result.postedAt };
       }));
     } catch {
       toast.error("Failed to update slot status");

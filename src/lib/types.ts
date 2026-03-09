@@ -27,6 +27,7 @@ export interface ScheduledSlot {
   status: SlotStatus;
   draftId?: string;
   draftTitle?: string;
+  postedAt?: Date;
 }
 
 export type MessageRole = "user" | "assistant";
