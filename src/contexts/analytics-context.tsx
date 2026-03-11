@@ -5,6 +5,16 @@ import type { AnalyticsSummary, ContentCsvRow, OverviewCsvRow } from "@/lib/type
 import { detectCsvType, parseContentCsvRows, parseOverviewCsvRows } from "@/lib/csv-parser";
 import { importContentData, importDailyStats, getAnalyticsSummary, getAnalyticsDateRange } from "@/app/actions/analytics";
 
+export type PeriodPreset = "7D" | "2W" | "1M" | "3M" | "1Y" | "ALL";
+
+const PRESET_DAYS: Record<Exclude<PeriodPreset, "ALL">, number> = {
+  "7D": 7,
+  "2W": 14,
+  "1M": 30,
+  "3M": 90,
+  "1Y": 365,
+};
+
 interface ImportResult {
   contentRows?: number;
   overviewRows?: number;
@@ -16,6 +26,8 @@ interface ImportResult {
 
 interface AnalyticsContextValue {
   dateRange: { from: Date; to: Date } | null;
+  fullDateRange: { from: Date; to: Date } | null;
+  activePreset: PeriodPreset;
   summary: AnalyticsSummary | null;
   isLoading: boolean;
 
@@ -30,6 +42,7 @@ interface AnalyticsContextValue {
   runImport: () => Promise<boolean>;
 
   // Data
+  setPreset: (preset: PeriodPreset) => void;
   setDateRange: (range: { from: Date; to: Date }) => void;
   refreshData: () => Promise<void>;
 }
@@ -49,7 +62,9 @@ interface Props {
 }
 
 export function AnalyticsProvider({ children, initialDateRange, initialSummary }: Props) {
+  const [fullDateRange, setFullDateRange] = useState(initialDateRange);
   const [dateRange, setDateRange] = useState(initialDateRange);
+  const [activePreset, setActivePreset] = useState<PeriodPreset>("ALL");
   const [summary, setSummary] = useState(initialSummary);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -91,6 +106,28 @@ export function AnalyticsProvider({ children, initialDateRange, initialSummary }
     }
   }, [dateRange]);
 
+  const setPreset = useCallback(async (preset: PeriodPreset) => {
+    if (!fullDateRange) return;
+    setActivePreset(preset);
+    setIsLoading(true);
+    try {
+      let from: Date;
+      const to = fullDateRange.to;
+      if (preset === "ALL") {
+        from = fullDateRange.from;
+      } else {
+        const days = PRESET_DAYS[preset];
+        from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+      }
+      const range = { from, to };
+      setDateRange(range);
+      const data = await getAnalyticsSummary(range.from, range.to);
+      setSummary(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fullDateRange]);
+
   const runImport = useCallback(async (): Promise<boolean> => {
     if (!contentCsv && !overviewCsv) return false;
     setIsImporting(true);
@@ -117,10 +154,12 @@ export function AnalyticsProvider({ children, initialDateRange, initialSummary }
       setContentCsv(null);
       setOverviewCsv(null);
 
-      // Refresh data after import, fetching date range if needed
+      // After import — refresh full date range and reset to ALL
       const range = dateRange ?? (await getAnalyticsDateRange());
       if (range) {
+        setFullDateRange(range);
         setDateRange(range);
+        setActivePreset("ALL");
         const data = await getAnalyticsSummary(range.from, range.to);
         setSummary(data);
       }
@@ -149,6 +188,8 @@ export function AnalyticsProvider({ children, initialDateRange, initialSummary }
     <AnalyticsContext.Provider
       value={{
         dateRange,
+        fullDateRange,
+        activePreset,
         summary,
         isLoading,
         contentCsv,
@@ -159,6 +200,7 @@ export function AnalyticsProvider({ children, initialDateRange, initialSummary }
         handleCsvFile,
         clearCsvFile,
         runImport,
+        setPreset,
         setDateRange: handleSetDateRange,
         refreshData,
       }}

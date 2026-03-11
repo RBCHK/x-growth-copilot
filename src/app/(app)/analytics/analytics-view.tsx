@@ -3,12 +3,12 @@
 import { useAnalytics } from "@/contexts/analytics-context";
 import { ImportPanel } from "./components/import-panel";
 import { StatsCards } from "./components/stats-cards";
-import { ImpressionsChart } from "./components/impressions-chart";
+import { DualAxisChart } from "./components/dual-axis-chart";
 import { FollowerChart } from "./components/follower-chart";
-import { EngagementChart } from "./components/engagement-chart";
-import { ProfileVisitsChart } from "./components/profile-visits-chart";
 import { PostingFrequencyChart } from "./components/posting-frequency-chart";
 import { TopContentTable } from "./components/top-content-table";
+import { PeriodPicker } from "./components/period-picker";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText } from "lucide-react";
 
 export function AnalyticsView() {
@@ -17,7 +17,7 @@ export function AnalyticsView() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4 p-4">
       {/* Top bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Analytics</h1>
           {dateRange && (
@@ -26,12 +26,11 @@ export function AnalyticsView() {
             </p>
           )}
         </div>
-        <ImportPanel />
+        <div className="flex items-center gap-2">
+          <PeriodPicker />
+          <ImportPanel />
+        </div>
       </div>
-
-      {isLoading && (
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      )}
 
       {!summary && !isLoading && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -47,19 +46,28 @@ export function AnalyticsView() {
         <>
           <StatsCards summary={summary} />
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <ImpressionsChart data={summary.dailyStats} />
-            <FollowerChart data={summary.dailyStats} />
-            <EngagementChart data={summary.dailyStats} />
-            <ProfileVisitsChart data={summary.dailyStats} />
-          </div>
+          <Tabs defaultValue="overview">
+            <TabsList>
+              <TabsTrigger value="overview">Account Overview</TabsTrigger>
+              <TabsTrigger value="content">Content</TabsTrigger>
+            </TabsList>
 
-          <PostingFrequencyChart data={summary.postsByDay} />
+            <TabsContent value="overview" className="mt-4 space-y-3">
+              <DualAxisChart data={summary.dailyStats} />
 
-          <TopContentTable
-            topPosts={summary.topPosts}
-            topReplies={summary.topReplies}
-          />
+              <div className="grid gap-3 md:grid-cols-2">
+                <FollowerChart data={summary.dailyStats} />
+                <PostingFrequencyChart data={summary.postsByDay} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="content" className="mt-4">
+              <TopContentTable
+                topPosts={summary.topPosts}
+                topReplies={summary.topReplies}
+              />
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </div>
