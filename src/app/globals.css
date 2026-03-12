@@ -125,10 +125,12 @@
   }
   html {
     overflow: hidden;
+    height: 100dvh;
   }
   body {
     @apply bg-background text-foreground;
     overflow: hidden;
+    height: 100dvh;
   }
   /* Tailwind v4 removed cursor-pointer for buttons; restore for clickable elements */
   button:not(:disabled),

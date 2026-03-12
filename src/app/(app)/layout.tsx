@@ -9,7 +9,7 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-dvh flex-col bg-background">
       <AppHeader />
 
       <div className="flex flex-1 overflow-hidden md:gap-[15px] md:px-[15px]">
