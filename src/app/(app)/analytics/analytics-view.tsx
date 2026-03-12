@@ -7,6 +7,7 @@ import { DualAxisChart } from "./components/dual-axis-chart";
 import { FollowerChart } from "./components/follower-chart";
 import { PostingFrequencyChart } from "./components/posting-frequency-chart";
 import { TopContentTable } from "./components/top-content-table";
+import { EngagementHeatmap } from "./components/engagement-heatmap";
 import { PeriodPicker } from "./components/period-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText } from "lucide-react";
@@ -59,6 +60,8 @@ export function AnalyticsView() {
                 <FollowerChart data={summary.dailyStats} />
                 <PostingFrequencyChart data={summary.postsByDay} />
               </div>
+
+              <EngagementHeatmap />
             </TabsContent>
 
             <TabsContent value="content" className="mt-4">

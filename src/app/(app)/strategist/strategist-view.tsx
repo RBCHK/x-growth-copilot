@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Search, Trash2, Plus, TrendingUp, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Trash2, Plus, TrendingUp, Loader2, ChevronDown, ChevronUp, BookOpen, ExternalLink, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { CsvUpload } from "@/components/csv-upload";
 import { useStrategist } from "@/contexts/strategist-context";
 import { deleteAnalysis } from "@/app/actions/strategist";
@@ -28,6 +29,11 @@ export function StrategistView() {
     handleCsvInput,
     runAnalysis,
     deleteAnalysisItem,
+    researchNotes,
+    selectedResearchId,
+    leftTab,
+    setLeftTab,
+    selectResearchNote,
   } = useStrategist();
 
   const [profileOpen, setProfileOpen] = useState(
@@ -38,6 +44,7 @@ export function StrategistView() {
   const [showNewAnalysis, setShowNewAnalysis] = useState(analyses.length === 0);
 
   const selectedAnalysis = analyses.find((a) => a.id === selectedId);
+  const selectedResearch = researchNotes.find((n) => n.id === selectedResearchId);
 
   // Show analysis panel when analysis is running OR when viewing a completed analysis
   const showAnalysisPanel =
@@ -66,77 +73,195 @@ export function StrategistView() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Left panel — history */}
+      {/* Left panel */}
       <div className="w-64 shrink-0 border-r flex flex-col">
+        {/* Header */}
         <div className="p-3 border-b flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-medium">
             <TrendingUp className="size-4" />
             Strategist
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            onClick={handleNewAnalysis}
-          >
-            <Plus className="size-3.5" />
-          </Button>
+          {leftTab === "analyses" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={handleNewAnalysis}
+            >
+              <Plus className="size-3.5" />
+            </Button>
+          )}
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b">
+          <button
+            className={`flex-1 py-2 text-xs font-medium transition-colors ${
+              leftTab === "analyses"
+                ? "border-b-2 border-primary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setLeftTab("analyses")}
+          >
+            Analyses
+          </button>
+          <button
+            className={`flex-1 py-2 text-xs font-medium transition-colors ${
+              leftTab === "research"
+                ? "border-b-2 border-primary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setLeftTab("research")}
+          >
+            Research
+          </button>
+        </div>
+
+        {/* List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {analyses.length === 0 && !analysisInProgress && (
-            <p className="text-xs text-muted-foreground px-2 py-4 text-center">
-              No analyses yet
-            </p>
+          {leftTab === "analyses" ? (
+            <>
+              {analyses.length === 0 && !analysisInProgress && (
+                <p className="text-xs text-muted-foreground px-2 py-4 text-center">
+                  No analyses yet
+                </p>
+              )}
+              {analysisInProgress && (
+                <div className="flex items-center gap-2 rounded-md px-2 py-2 bg-muted text-sm">
+                  <Loader2 className="size-3.5 animate-spin shrink-0" />
+                  <span className="truncate text-muted-foreground">Analyzing...</span>
+                </div>
+              )}
+              {analyses.map((a) => (
+                <div
+                  key={a.id}
+                  className={`group flex items-start justify-between rounded-md px-2 py-2 cursor-pointer hover:bg-muted/50 text-sm ${
+                    selectedId === a.id && !showNewAnalysis ? "bg-muted" : ""
+                  }`}
+                  onClick={() => {
+                    setShowNewAnalysis(false);
+                    selectAnalysis(a.id);
+                  }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium truncate">
+                        {a.csvSummary.dateRange.from} –
+                      </span>
+                      {a.autoGenerated && (
+                        <Bot className="size-3 shrink-0 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {a.csvSummary.dateRange.to}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {a.csvSummary.totalPosts} posts · {a.csvSummary.avgImpressions} avg imp
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(a.id);
+                    }}
+                  >
+                    <Trash2 className="size-3" />
+                  </Button>
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              {researchNotes.length === 0 && (
+                <p className="text-xs text-muted-foreground px-2 py-4 text-center">
+                  No research notes yet
+                </p>
+              )}
+              {researchNotes.map((n) => (
+                <div
+                  key={n.id}
+                  className={`rounded-md px-2 py-2 cursor-pointer hover:bg-muted/50 text-sm ${
+                    selectedResearchId === n.id ? "bg-muted" : ""
+                  }`}
+                  onClick={() => selectResearchNote(n.id)}
+                >
+                  <div className="flex items-start gap-1.5">
+                    <BookOpen className="size-3 shrink-0 mt-0.5 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <p className="font-medium truncate text-xs">{n.topic}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {n.createdAt.toLocaleDateString("ru-RU")} · {n.sources.length} sources
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
           )}
-          {analysisInProgress && (
-            <div className="flex items-center gap-2 rounded-md px-2 py-2 bg-muted text-sm">
-              <Loader2 className="size-3.5 animate-spin shrink-0" />
-              <span className="truncate text-muted-foreground">Analyzing...</span>
-            </div>
-          )}
-          {analyses.map((a) => (
-            <div
-              key={a.id}
-              className={`group flex items-start justify-between rounded-md px-2 py-2 cursor-pointer hover:bg-muted/50 text-sm ${
-                selectedId === a.id && !showNewAnalysis ? "bg-muted" : ""
-              }`}
-              onClick={() => {
-                setShowNewAnalysis(false);
-                selectAnalysis(a.id);
-              }}
-            >
-              <div className="min-w-0">
-                <div className="font-medium truncate">
-                  {a.csvSummary.dateRange.from} –
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {a.csvSummary.dateRange.to}
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {a.csvSummary.totalPosts} posts · {a.csvSummary.avgImpressions} avg
-                  imp
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-6 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(a.id);
-                }}
-              >
-                <Trash2 className="size-3" />
-              </Button>
-            </div>
-          ))}
         </div>
       </div>
 
       {/* Right panel */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {!showAnalysisPanel ? (
+        {leftTab === "research" ? (
+          /* Research note view */
+          selectedResearch ? (
+            <div className="flex-1 overflow-y-auto p-6">
+              <h2 className="text-lg font-semibold mb-1">{selectedResearch.topic}</h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                {selectedResearch.createdAt.toLocaleDateString("ru-RU")} · {selectedResearch.sources.length} sources
+              </p>
+
+              <div className="prose prose-sm dark:prose-invert max-w-none mb-6">
+                <ReactMarkdown>{selectedResearch.summary}</ReactMarkdown>
+              </div>
+
+              {selectedResearch.sources.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">Sources</h3>
+                  {selectedResearch.sources.map((s, i) => (
+                    <div key={i} className="rounded-md border p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium leading-tight">{s.title}</p>
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </a>
+                      </div>
+                      {s.snippet && (
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                          {s.snippet}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedResearch.queries.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedResearch.queries.map((q, i) => (
+                    <Badge key={i} variant="outline" className="text-xs font-normal">
+                      <Search className="size-3 mr-1" />
+                      {q}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-sm text-muted-foreground">Select a research note</p>
+            </div>
+          )
+        ) : !showAnalysisPanel ? (
           /* Upload / input state */
           <div className="flex-1 overflow-y-auto p-6 max-w-2xl w-full mx-auto">
             <h2 className="text-lg font-semibold mb-1">New Analysis</h2>

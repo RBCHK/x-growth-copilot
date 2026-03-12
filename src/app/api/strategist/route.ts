@@ -4,7 +4,9 @@ import { streamText, tool, stepCountIs } from "ai";
 import { z } from "zod";
 import { tavily } from "@tavily/core";
 import { getStrategistPrompt, buildStrategistUserMessage } from "@/prompts/strategist";
-import type { CsvSummary, XProfile } from "@/lib/types";
+import { getScheduleConfig } from "@/app/actions/schedule";
+import { getAcceptedProposals } from "@/app/actions/plan-proposal";
+import type { ConfigChange, CsvSummary, MetricsSnapshot, PastDecisionItem, XProfile } from "@/lib/types";
 
 export const maxDuration = 120;
 
@@ -26,6 +28,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "TAVILY_API_KEY is not configured" }, { status: 500 });
   }
 
+  // Load context for self-improvement loop
+  const [scheduleConfig, acceptedProposals] = await Promise.all([
+    getScheduleConfig(),
+    getAcceptedProposals(30),
+  ]);
+
+  const currentMetrics: MetricsSnapshot = {
+    avgImpressions: csvSummary.avgImpressions,
+    newFollowersPerWeek: csvSummary.totalNewFollows,
+    engagementRate: csvSummary.avgEngagementRate,
+    date: weekStart,
+  };
+
+  const pastDecisions: PastDecisionItem[] = acceptedProposals
+    .filter((p) => p.proposalType === "config" && p.metricsSnapshot)
+    .map((p) => ({
+      date: p.createdAt.toISOString().split("T")[0],
+      changes: p.changes as ConfigChange[],
+      rationale: p.summary,
+      metricsAtDecision: p.metricsSnapshot!,
+    }));
+
+  void currentMetrics; // captured for future: pass to savePlanProposal from context onFinish
+
   const tavilyClient = tavily({ apiKey: tavilyApiKey });
 
   const result = streamText({
@@ -34,7 +60,19 @@ export async function POST(req: NextRequest) {
     messages: [
       {
         role: "user",
-        content: buildStrategistUserMessage(csvSummary, weekStart, profile),
+        content: buildStrategistUserMessage(
+          csvSummary,
+          weekStart,
+          profile,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          scheduleConfig ?? undefined,
+          pastDecisions
+        ),
       },
     ],
     tools: {

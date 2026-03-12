@@ -1,5 +1,7 @@
 /**
- * X (Twitter) API v2 client with OAuth 1.0a authentication
+ * X (Twitter) API v2 client
+ * - OAuth 1.0a: for tweets, users/me (app-level access)
+ * - OAuth 2.0 User Token: for personalized_trends (user-context)
  * Single-user setup: credentials stored in .env.local
  */
 
@@ -100,10 +102,16 @@ async function xFetch<T>(
   return res.json() as Promise<T>;
 }
 
+/** Fetch current user's ID and username */
+export async function fetchCurrentUser(): Promise<{ id: string; username: string }> {
+  const data = await xFetch<{ data: { id: string; username: string } }>('/users/me', { 'user.fields': 'username' });
+  return { id: data.data.id, username: data.data.username };
+}
+
 /** Fetch current user's ID (needed for /users/:id/tweets) */
 export async function fetchCurrentUserId(): Promise<string> {
-  const data = await xFetch<{ data: { id: string } }>('/users/me', {});
-  return data.data.id;
+  const { id } = await fetchCurrentUser();
+  return id;
 }
 
 /** Fetch current user's followers/following count */
@@ -118,9 +126,40 @@ export async function fetchUserData(): Promise<XUserData> {
   };
 }
 
+// --- OAuth 2.0 User Token support ---
+
+async function xFetchOAuth2<T>(
+  endpoint: string,
+  params: Record<string, string>
+): Promise<T> {
+  const token = process.env.X_OAUTH2_ACCESS_TOKEN;
+  if (!token) {
+    throw new Error('X_OAUTH2_ACCESS_TOKEN is not set. Run the OAuth 2.0 PKCE flow first.');
+  }
+
+  const url = `${BASE_URL}${endpoint}`;
+  const qs = new URLSearchParams(params).toString();
+
+  const res = await fetch(`${url}?${qs}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`X API OAuth2 ${res.status} ${res.statusText}: ${body}`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
 /** Fetch user's own tweets with public + non-public metrics */
 export async function fetchUserTweets(
   userId: string,
+  username: string,
   maxResults = 100,
   sinceId?: string
 ): Promise<XTweetMetrics[]> {
@@ -163,7 +202,7 @@ export async function fetchUserTweets(
       postId: tweet.id,
       createdAt: new Date(tweet.created_at),
       text: tweet.text,
-      postLink: `https://x.com/razRBCHK/status/${tweet.id}`,
+      postLink: `https://x.com/${username}/status/${tweet.id}`,
       impressions,
       likes: pub.like_count,
       engagements,
@@ -174,4 +213,112 @@ export async function fetchUserTweets(
       urlClicks,
     };
   });
+}
+
+/** Fetch user tweets with pagination support (>100 tweets) */
+export async function fetchUserTweetsPaginated(
+  userId: string,
+  username: string,
+  opts: { maxResults?: number; startTime?: string; sinceId?: string } = {}
+): Promise<XTweetMetrics[]> {
+  const allTweets: XTweetMetrics[] = [];
+  let paginationToken: string | undefined;
+  const perPage = Math.min(opts.maxResults ?? 100, 100);
+
+  do {
+    const params: Record<string, string> = {
+      max_results: perPage.toString(),
+      'tweet.fields': 'created_at,public_metrics,non_public_metrics,organic_metrics',
+    };
+    if (opts.sinceId) params.since_id = opts.sinceId;
+    if (opts.startTime) params.start_time = opts.startTime;
+    if (paginationToken) params.pagination_token = paginationToken;
+
+    const data = await xFetch<{
+      data?: Array<{
+        id: string;
+        text: string;
+        created_at: string;
+        public_metrics: {
+          like_count: number;
+          reply_count: number;
+          retweet_count: number;
+          bookmark_count: number;
+          impression_count?: number;
+        };
+        non_public_metrics?: {
+          impression_count: number;
+          url_clicks: number;
+        };
+        organic_metrics?: {
+          user_profile_clicks: number;
+        };
+      }>;
+      meta?: { next_token?: string };
+    }>(`/users/${userId}/tweets`, params);
+
+    if (data.data?.length) {
+      for (const tweet of data.data) {
+        const pub = tweet.public_metrics;
+        const priv = tweet.non_public_metrics;
+        const impressions = priv?.impression_count ?? pub.impression_count ?? 0;
+        const urlClicks = priv?.url_clicks ?? 0;
+        const engagements = pub.like_count + pub.reply_count + pub.retweet_count + pub.bookmark_count;
+
+        allTweets.push({
+          postId: tweet.id,
+          createdAt: new Date(tweet.created_at),
+          text: tweet.text,
+          postLink: `https://x.com/${username}/status/${tweet.id}`,
+          impressions,
+          likes: pub.like_count,
+          engagements,
+          bookmarks: pub.bookmark_count,
+          shares: pub.retweet_count,
+          replies: pub.reply_count,
+          reposts: pub.retweet_count,
+          urlClicks,
+        });
+      }
+    }
+
+    paginationToken = data.meta?.next_token;
+
+    // If maxResults specified, stop when we have enough
+    if (opts.maxResults && allTweets.length >= opts.maxResults) {
+      return allTweets.slice(0, opts.maxResults);
+    }
+  } while (paginationToken);
+
+  return allTweets;
+}
+
+/** Fetch personalized trends (requires OAuth 2.0 User Token) */
+export async function fetchPersonalizedTrends(): Promise<
+  {
+    trendName: string;
+    postCount: number;
+    category?: string;
+    trendingSince?: string;
+  }[]
+> {
+  const data = await xFetchOAuth2<{
+    data?: Array<{
+      trend_name: string;
+      post_count?: number;
+      category?: string;
+      trending_since?: string;
+    }>;
+  }>('/users/personalized_trends', {
+    'personalized_trend.fields': 'category,post_count,trend_name,trending_since',
+  });
+
+  if (!data.data?.length) return [];
+
+  return data.data.map((t) => ({
+    trendName: t.trend_name,
+    postCount: t.post_count ?? 0,
+    category: t.category,
+    trendingSince: t.trending_since,
+  }));
 }

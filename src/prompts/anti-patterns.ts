@@ -1,16 +1,10 @@
 export const ANTI_PATTERNS = {
   // Words and phrases that immediately signal AI or low-quality content
   bannedWords: [
-    "100%",
-    "Exactly",
     "Great point",
-    "Absolutely",
     "Totally agree",
     "Well said",
     "Spot on",
-    "Indeed",
-    "Certainly",
-    "Of course",
     "Fascinating",
     "Insightful",
     "I completely agree",
@@ -21,7 +15,6 @@ export const ANTI_PATTERNS = {
     "Preach",
     "Facts",
     "Banger",
-    // TODO: add your own banned words based on your content review
   ],
 
   // Structural patterns that reveal AI authorship
@@ -34,7 +27,6 @@ export const ANTI_PATTERNS = {
     "The word 'delve' or 'crucial' or 'landscape'",
     "Emoji-heavy formatting",
     "Starting reply with the author's name: '@username Great point...'",
-    // TODO: add more AI-tell patterns you've noticed in your own drafts
   ],
 
   // Content structures to avoid
@@ -45,7 +37,6 @@ export const ANTI_PATTERNS = {
     "Ending with a CTA ('Follow me for more', 'Check out my profile')",
     "More than 2 emojis in a reply",
     "Rhetorical question as the entire reply",
-    // TODO: add structures you've identified as low-performing in your analytics
   ],
 } as const;
 

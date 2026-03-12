@@ -1,26 +1,32 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { fetchCurrentUser, fetchUserTweets } from "@/lib/x-api";
+import { fetchCurrentUser, fetchUserTweetsPaginated } from "@/lib/x-api";
+import { revalidatePath } from "next/cache";
 import type { XPostType as PrismaXPostType } from "@/generated/prisma";
+
+export const maxDuration = 60;
 
 function detectPostType(text: string): PrismaXPostType {
   return text.startsWith("@") ? "REPLY" : "POST";
 }
 
-export async function importFromXApi(
-  maxResults: number = 100
-): Promise<{ imported: number; updated: number; total: number }> {
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id: userId, username } = await fetchCurrentUser();
 
-  // Get the most recent post ID from DB to avoid re-fetching existing tweets
+  // Fetch since the most recent post in DB
   const latest = await prisma.xPost.findFirst({
     orderBy: { date: "desc" },
     select: { postId: true },
   });
 
-  const tweets = await fetchUserTweets(userId, username, maxResults, latest?.postId);
+  const tweets = await fetchUserTweetsPaginated(userId, username, {
+    sinceId: latest?.postId,
+  });
 
   let imported = 0;
   let updated = 0;
@@ -63,14 +69,16 @@ export async function importFromXApi(
       },
     });
 
-    if (existing) {
-      updated++;
-    } else {
-      imported++;
-    }
+    if (existing) updated++;
+    else imported++;
   }
 
   revalidatePath("/analytics");
 
-  return { imported, updated, total: tweets.length };
+  return NextResponse.json({
+    ok: true,
+    imported,
+    updated,
+    total: tweets.length,
+  });
 }

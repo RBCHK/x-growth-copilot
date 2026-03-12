@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import type { ContentCsvRow, OverviewCsvRow, AnalyticsSummary } from "@/lib/types";
+import type { ContentCsvRow, OverviewCsvRow, AnalyticsSummary, HeatmapCell } from "@/lib/types";
 import { X_POST_TYPE_TO_PRISMA, X_POST_TYPE_MAP } from "@/lib/types";
 import type { XPostType as PrismaXPostType } from "@/generated/prisma";
 
@@ -18,7 +18,9 @@ export async function importContentData(
     const date = new Date(row.date);
     if (isNaN(date.getTime())) continue;
 
-    const result = await prisma.xPost.upsert({
+    const existing = await prisma.xPost.findUnique({ where: { postId: row.postId } });
+
+    await prisma.xPost.upsert({
       where: { postId: row.postId },
       create: {
         postId: row.postId,
@@ -53,13 +55,8 @@ export async function importContentData(
       },
     });
 
-    if (result.createdAt.getTime() === result.createdAt.getTime()) {
-      // Check if this was a create or update by comparing dates
-      // Prisma upsert doesn't distinguish, so we count based on whether createdAt is "now"
-      const isNew = Date.now() - result.createdAt.getTime() < 5000;
-      if (isNew) imported++;
-      else updated++;
-    }
+    if (existing) updated++;
+    else imported++;
   }
 
   revalidatePath("/analytics");
@@ -274,4 +271,36 @@ export async function getAnalyticsSummary(from: Date, to: Date): Promise<Analyti
       .map(([date, counts]) => ({ date, ...counts }))
       .sort((a, b) => a.date.localeCompare(b.date)),
   };
+}
+
+export async function getEngagementHeatmap(from: Date, to: Date): Promise<HeatmapCell[]> {
+  const posts = await prisma.xPost.findMany({
+    where: { date: { gte: from, lte: to }, impressions: { gt: 0 } },
+    select: { date: true, engagements: true, impressions: true },
+  });
+
+  // Map: "dayOfWeek-hour" → { totalRate, count }
+  const map = new Map<string, { totalRate: number; count: number }>();
+
+  for (const post of posts) {
+    const jsDay = post.date.getUTCDay(); // 0=Sun, 1=Mon...
+    const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1; // 0=Mon, 6=Sun
+    const hour = post.date.getUTCHours();
+    const rate = post.engagements / post.impressions;
+    const key = `${dayOfWeek}-${hour}`;
+    const entry = map.get(key) ?? { totalRate: 0, count: 0 };
+    entry.totalRate += rate;
+    entry.count += 1;
+    map.set(key, entry);
+  }
+
+  return Array.from(map.entries()).map(([key, { totalRate, count }]) => {
+    const [dayStr, hourStr] = key.split("-");
+    return {
+      dayOfWeek: parseInt(dayStr!),
+      hour: parseInt(hourStr!),
+      avgEngagementRate: totalRate / count,
+      postCount: count,
+    };
+  });
 }

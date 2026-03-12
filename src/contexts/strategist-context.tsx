@@ -10,10 +10,13 @@ import {
 } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage, type TextUIPart, type DynamicToolUIPart } from "ai";
-import type { CsvSummary, StrategyAnalysisItem, XProfile } from "@/lib/types";
+import type { ConfigChange, CsvSummary, ResearchNoteItem, StrategyAnalysisItem, XProfile } from "@/lib/types";
 import { parseCsv } from "@/lib/csv-parser";
 import { saveAnalysis } from "@/app/actions/strategist";
+import { savePlanProposal } from "@/app/actions/plan-proposal";
 import { useXProfile } from "@/hooks/use-x-profile";
+
+export type LeftTab = "analyses" | "research";
 
 interface StrategistContextValue {
   analyses: StrategyAnalysisItem[];
@@ -29,6 +32,12 @@ interface StrategistContextValue {
   streamedText: string;
   profile: XProfile;
   updateProfile: (updates: Partial<XProfile>) => void;
+  // Research tab
+  researchNotes: ResearchNoteItem[];
+  selectedResearchId: string | null;
+  leftTab: LeftTab;
+  setLeftTab: (tab: LeftTab) => void;
+  selectResearchNote: (id: string | null) => void;
 
   selectAnalysis: (id: string | null) => void;
   handleCsvInput: (raw: string) => void;
@@ -49,11 +58,13 @@ export function useStrategist() {
 interface StrategistProviderProps {
   children: ReactNode;
   initialAnalyses: StrategyAnalysisItem[];
+  initialResearchNotes: ResearchNoteItem[];
 }
 
 export function StrategistProvider({
   children,
   initialAnalyses,
+  initialResearchNotes,
 }: StrategistProviderProps) {
   const [analyses, setAnalyses] = useState<StrategyAnalysisItem[]>(initialAnalyses);
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -64,6 +75,10 @@ export function StrategistProvider({
   const [savedSearchQueries, setSavedSearchQueries] = useState<string[]>([]);
   const [analysisInProgress, setAnalysisInProgress] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [leftTab, setLeftTab] = useState<LeftTab>("analyses");
+  const [selectedResearchId, setSelectedResearchId] = useState<string | null>(
+    initialResearchNotes[0]?.id ?? null
+  );
 
   const { profile, updateProfile } = useXProfile();
 
@@ -128,6 +143,29 @@ export function StrategistProvider({
 
         setAnalyses((prev) => [saved, ...prev]);
         setSelectedId(saved.id);
+
+        // Parse config-proposal block and save as PlanProposal
+        const proposalMatch = text.match(/```json:config-proposal\s*([\s\S]*?)```/);
+        if (proposalMatch?.[1]) {
+          try {
+            const changes: ConfigChange[] = JSON.parse(proposalMatch[1].trim());
+            if (Array.isArray(changes) && changes.length > 0) {
+              const summaryMatch = text.match(/##[^#\n]*Стратегия[^#\n]*\n([\s\S]{0,300})/i);
+              const proposalSummary =
+                summaryMatch?.[1]?.trim().slice(0, 300) ??
+                `Изменения в шаблон расписания (${changes.length} шт.) от ${weekStartRef.current}`;
+              await savePlanProposal({
+                changes,
+                summary: proposalSummary,
+                analysisId: saved.id,
+                proposalType: "config",
+              });
+              window.dispatchEvent(new Event("slots-updated"));
+            }
+          } catch (parseErr) {
+            console.warn("[strategist] Failed to parse config-proposal JSON:", parseErr);
+          }
+        }
       } catch (e) {
         setAnalysisError(e instanceof Error ? e.message : "Failed to save analysis");
       } finally {
@@ -188,6 +226,10 @@ export function StrategistProvider({
     setSelectedId((prev) => (prev === id ? null : prev));
   }, []);
 
+  const selectResearchNote = useCallback((id: string | null) => {
+    setSelectedResearchId(id);
+  }, []);
+
   const displayedSearchQueries = isAnalyzing ? liveSearchQueries : savedSearchQueries;
 
   return (
@@ -204,6 +246,11 @@ export function StrategistProvider({
         streamedText,
         profile,
         updateProfile,
+        researchNotes: initialResearchNotes,
+        selectedResearchId,
+        leftTab,
+        setLeftTab,
+        selectResearchNote,
         selectAnalysis,
         handleCsvInput,
         runAnalysis,

@@ -7,6 +7,8 @@ import {
 } from "@/prompts/daily-insight";
 import { prisma } from "@/lib/prisma";
 import { saveDailyInsight } from "@/app/actions/daily-insight";
+import { getLatestTrends } from "@/app/actions/trends";
+import { getLatestFollowersSnapshot } from "@/app/actions/followers";
 import type { DailyInsightContext } from "@/lib/types";
 
 export const maxDuration = 30;
@@ -36,31 +38,48 @@ export async function GET(req: NextRequest) {
     orderBy: { date: "desc" },
   });
 
+  // 4. Latest trends and followers snapshot
+  const [trends, latestFollowers] = await Promise.all([
+    getLatestTrends(),
+    getLatestFollowersSnapshot(),
+  ]);
+
   // 4. Generate insights with Haiku
-  const result = await generateText({
-    model: anthropic("claude-haiku-4-5-20251001"),
-    system: getDailyInsightPrompt(),
-    messages: [
-      {
-        role: "user",
-        content: buildDailyInsightUserMessage(
-          latestStrategy?.recommendation ?? null,
-          researchNotes.map((n) => ({
-            topic: n.topic,
-            summary: n.summary,
-          })),
-          recentStats.map((d) => ({
-            date: d.date.toISOString().split("T")[0],
-            impressions: d.impressions,
-            newFollows: d.newFollows,
-            unfollows: d.unfollows,
-            profileVisits: d.profileVisits,
-            engagements: d.engagements,
-          }))
-        ),
-      },
-    ],
-  });
+  let result: Awaited<ReturnType<typeof generateText>>;
+  try {
+    result = await generateText({
+      model: anthropic("claude-haiku-4-5-20251001"),
+      system: getDailyInsightPrompt(),
+      messages: [
+        {
+          role: "user",
+          content: buildDailyInsightUserMessage(
+            latestStrategy?.recommendation ?? null,
+            researchNotes.map((n) => ({
+              topic: n.topic,
+              summary: n.summary,
+            })),
+            recentStats.map((d) => ({
+              date: d.date.toISOString().split("T")[0],
+              impressions: d.impressions,
+              newFollows: d.newFollows,
+              unfollows: d.unfollows,
+              profileVisits: d.profileVisits,
+              engagements: d.engagements,
+            })),
+            trends,
+            latestFollowers
+          ),
+        },
+      ],
+    });
+  } catch (e) {
+    console.error("[daily-insight] generateText failed:", e);
+    return NextResponse.json(
+      { error: "AI generation failed", details: e instanceof Error ? e.message : String(e) },
+      { status: 500 }
+    );
+  }
 
   // 5. Parse JSON array from response
   let insights: string[];

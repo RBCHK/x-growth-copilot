@@ -7,6 +7,8 @@ import { getRecentUsedModes } from "@/app/actions/conversations";
 import { getReplyPrompt } from "@/prompts/analyst-reply";
 import { getPostPrompt } from "@/prompts/analyst-post";
 import { fetchTweetFromText } from "@/lib/parse-tweet";
+import { getLatestTrends } from "@/app/actions/trends";
+import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 60;
 
@@ -51,10 +53,20 @@ export async function POST(req: NextRequest) {
     ? (modelParam as AllowedModel)
     : "claude-sonnet-4-6";
 
-  // Load voice bank and recent modes in parallel
-  const [voiceBankEntries, recentModes] = await Promise.all([
+  // Load voice bank, recent modes, trends, and top posts in parallel
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const [voiceBankEntries, recentModes, trends, topPosts] = await Promise.all([
     getVoiceBankEntries(contentType === "Reply" ? "REPLY" : "POST", 25),
     contentType === "Reply" ? getRecentUsedModes(conversationId, 5) : Promise.resolve([]),
+    getLatestTrends(),
+    prisma.xPost.findMany({
+      where: { date: { gte: thirtyDaysAgo }, postType: "POST" },
+      orderBy: { engagements: "desc" },
+      take: 10,
+      select: { text: true, engagements: true },
+    }),
   ]);
   const voiceBank = voiceBankEntries.map((e) => e.content);
 
@@ -84,7 +96,19 @@ export async function POST(req: NextRequest) {
       ? getReplyPrompt(notes, voiceBank, recentModes, convLangLabel, contentLangLabel)
       : getPostPrompt(contentType as "Post" | "Thread" | "Article", notes, voiceBank, convLangLabel, contentLangLabel);
 
-  const systemPrompt = baseSystem + tweetContext;
+  const trendsContext =
+    trends.length > 0
+      ? `\n\n## Trending Now on X\n${trends.map((t) => `- ${t.trendName}${t.category ? ` [${t.category}]` : ""} (${t.postCount} posts)`).join("\n")}`
+      : "";
+
+  const topPostsContext =
+    topPosts.length > 0
+      ? `\n\n## Your Top Performing Posts (last 30 days)\n${topPosts
+          .map((p, i) => `${i + 1}. "${p.text.slice(0, 100)}${p.text.length > 100 ? "..." : ""}" — ${p.engagements} engagements`)
+          .join("\n")}`
+      : "";
+
+  const systemPrompt = baseSystem + tweetContext + trendsContext + topPostsContext;
   console.log("[chat] model:", model);
 
   // Convert UIMessage[] to ModelMessage[] for streamText

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import type { SlotStatus, SlotType } from "@/lib/types";
+import type { GoalTrackingData, SlotStatus, SlotType } from "@/lib/types";
 import { SlotStatus as PrismaSlotStatus, SlotType as PrismaSlotType } from "@/generated/prisma";
 
 const slotStatusToPrisma: Record<SlotStatus, PrismaSlotStatus> = {
@@ -443,4 +443,102 @@ export async function addToQueue(
 
   revalidatePath("/");
   return { date: isPast ? now : slot.date, timeSlot: slot.timeSlot, isPast };
+}
+
+// --- Goal Config ---
+
+export async function getGoalConfig(): Promise<{
+  targetFollowers: number | null;
+  targetDate: Date | null;
+} | null> {
+  const row = await prisma.strategyConfig.findFirst({
+    orderBy: { createdAt: "desc" },
+    select: { targetFollowers: true, targetDate: true },
+  });
+  if (!row) return null;
+  return { targetFollowers: row.targetFollowers, targetDate: row.targetDate };
+}
+
+export async function updateGoalConfig(data: {
+  targetFollowers: number;
+  targetDate: Date;
+}): Promise<void> {
+  const existing = await prisma.strategyConfig.findFirst();
+  if (existing) {
+    await prisma.strategyConfig.update({
+      where: { id: existing.id },
+      data: { targetFollowers: data.targetFollowers, targetDate: data.targetDate },
+    });
+  } else {
+    await prisma.strategyConfig.create({
+      data: {
+        postsPerDay: 2,
+        replySessionsPerDay: 4,
+        timeSlots: [],
+        targetFollowers: data.targetFollowers,
+        targetDate: data.targetDate,
+      },
+    });
+  }
+  revalidatePath("/");
+}
+
+/** Compute goal tracking data from FollowersSnapshot + StrategyConfig */
+export async function getGoalTrackingData(): Promise<GoalTrackingData | null> {
+  const config = await prisma.strategyConfig.findFirst({
+    orderBy: { createdAt: "desc" },
+    select: { targetFollowers: true, targetDate: true },
+  });
+  if (!config?.targetFollowers || !config?.targetDate) return null;
+
+  // Get last 30 days of snapshots
+  const since = new Date();
+  since.setUTCHours(0, 0, 0, 0);
+  since.setUTCDate(since.getUTCDate() - 30);
+
+  const snapshots = await prisma.followersSnapshot.findMany({
+    where: { date: { gte: since } },
+    orderBy: { date: "asc" },
+  });
+
+  if (snapshots.length === 0) return null;
+
+  const latest = snapshots[snapshots.length - 1];
+  const currentFollowers = latest.followersCount;
+
+  // Rolling 30-day average daily growth
+  const totalDelta = snapshots.reduce((sum, s) => sum + s.deltaFollowers, 0);
+  const dailyAvgGrowth = snapshots.length > 1 ? totalDelta / snapshots.length : 0;
+
+  // Projected date at current pace
+  const remaining = config.targetFollowers - currentFollowers;
+  let projectedDate: Date | null = null;
+  if (dailyAvgGrowth > 0) {
+    const daysNeeded = Math.ceil(remaining / dailyAvgGrowth);
+    projectedDate = new Date();
+    projectedDate.setUTCDate(projectedDate.getUTCDate() + daysNeeded);
+  }
+
+  // Deviation: how many days ahead/behind schedule
+  const targetDate = new Date(config.targetDate);
+  const now = new Date();
+  const daysToTarget = Math.ceil(
+    (targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const requiredDailyGrowth = daysToTarget > 0 ? remaining / daysToTarget : (remaining > 0 ? Infinity : 0);
+  const deviationDays = projectedDate
+    ? Math.round((targetDate.getTime() - projectedDate.getTime()) / (1000 * 60 * 60 * 24))
+    : -Infinity;
+
+  const onTrack = dailyAvgGrowth >= requiredDailyGrowth;
+
+  return {
+    currentFollowers,
+    targetFollowers: config.targetFollowers,
+    targetDate: config.targetDate,
+    dailyAvgGrowth: Math.round(dailyAvgGrowth * 10) / 10,
+    projectedDate,
+    deviationDays: deviationDays === -Infinity ? -999 : deviationDays,
+    onTrack,
+  };
 }
