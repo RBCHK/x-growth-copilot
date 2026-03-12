@@ -1,0 +1,76 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
+import { fetchCurrentUserId, fetchUserTweets } from "@/lib/x-api";
+import type { XPostType as PrismaXPostType } from "@/generated/prisma";
+
+function detectPostType(text: string): PrismaXPostType {
+  return text.startsWith("@") ? "REPLY" : "POST";
+}
+
+export async function importFromXApi(
+  maxResults: number = 100
+): Promise<{ imported: number; updated: number; total: number }> {
+  const userId = process.env.X_USER_ID ?? (await fetchCurrentUserId());
+
+  // Get the most recent post ID from DB to avoid re-fetching existing tweets
+  const latest = await prisma.xPost.findFirst({
+    orderBy: { date: "desc" },
+    select: { postId: true },
+  });
+
+  const tweets = await fetchUserTweets(userId, maxResults, latest?.postId);
+
+  let imported = 0;
+  let updated = 0;
+
+  for (const tweet of tweets) {
+    const existing = await prisma.xPost.findUnique({
+      where: { postId: tweet.postId },
+      select: { createdAt: true },
+    });
+
+    await prisma.xPost.upsert({
+      where: { postId: tweet.postId },
+      create: {
+        postId: tweet.postId,
+        date: tweet.createdAt,
+        text: tweet.text,
+        postLink: tweet.postLink,
+        postType: detectPostType(tweet.text),
+        impressions: tweet.impressions,
+        likes: tweet.likes,
+        engagements: tweet.engagements,
+        bookmarks: tweet.bookmarks,
+        shares: tweet.shares,
+        newFollowers: 0,
+        replies: tweet.replies,
+        reposts: tweet.reposts,
+        profileVisits: 0,
+        detailExpands: 0,
+        urlClicks: tweet.urlClicks,
+      },
+      update: {
+        impressions: tweet.impressions,
+        likes: tweet.likes,
+        engagements: tweet.engagements,
+        bookmarks: tweet.bookmarks,
+        shares: tweet.shares,
+        replies: tweet.replies,
+        reposts: tweet.reposts,
+        urlClicks: tweet.urlClicks,
+      },
+    });
+
+    if (existing) {
+      updated++;
+    } else {
+      imported++;
+    }
+  }
+
+  revalidatePath("/analytics");
+
+  return { imported, updated, total: tweets.length };
+}
