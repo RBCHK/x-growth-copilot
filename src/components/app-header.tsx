@@ -16,7 +16,8 @@ export function AppHeader() {
   }
 
   return (
-    <header className="flex h-[64px] min-h-[64px] shrink-0 items-center justify-between px-4">
+    <header className="flex flex-col shrink-0 pt-[env(safe-area-inset-top)]">
+    <div className="flex h-[64px] items-center justify-between px-4">
       <Link
         href="/"
         onClick={() => window.dispatchEvent(new Event("focus-chat-input"))}
@@ -43,6 +44,7 @@ export function AppHeader() {
           <Settings className="h-4 w-4" />
         </Button>
       </div>
+    </div>
     </header>
   );
 }

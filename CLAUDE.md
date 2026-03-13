@@ -31,6 +31,17 @@ See JSDoc in `conversation-context.tsx` for the contract.
 
 **Page layout standard**: all new `*-view.tsx` files must use `<PageContainer>` from `@/components/page-container` as the root element. Add extra classes via `className` prop (e.g. `className="space-y-4"`).
 
+## Mobile / PWA Rules
+
+IMPORTANT: This app runs as a PWA on iPhone — always apply these rules when touching layout or UI.
+
+- **Safe area top**: Header must wrap content in inner `div` and use `pt-[env(safe-area-inset-top)]` on the `<header>` — never use fixed height alone
+- **Safe area bottom**: Bottom nav must use `pb-[env(safe-area-inset-bottom)]` (already in `MobileBottomNav`)
+- **Touch targets**: Minimum 44×44px for all tappable elements
+- **Input zoom**: Font size ≥ 16px on `<input>` and `<textarea>` — smaller sizes trigger iOS auto-zoom
+- **Hover states**: Wrap `hover:` utilities with `[@media(hover:hover)]:hover:` — bare `hover:` sticks on touch
+- **Test**: Safari DevTools → Responsive → iPhone 15 Pro (Dynamic Island) before considering mobile done
+
 ## Testing
 
 - **Framework**: Vitest (`npm test` / `npm run test:watch`)
