@@ -32,6 +32,7 @@ import {
 } from "@/app/actions/schedule";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage, type LanguageSettings } from "@/lib/types";
 import { MODEL_OPTIONS, MODEL_STORAGE_KEY, getStoredModel } from "@/lib/model";
+import { type ThemePreference, applyTheme, saveTheme, getStoredTheme } from "@/lib/theme";
 
 interface VoiceBankEntry {
   id: string;
@@ -639,6 +640,50 @@ function ApiKeysTab() {
   );
 }
 
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+function AppearanceTab() {
+  const [theme, setTheme] = useState<ThemePreference>("system");
+
+  useEffect(() => {
+    setTheme(getStoredTheme());
+  }, []);
+
+  function handleSelect(pref: ThemePreference) {
+    setTheme(pref);
+    applyTheme(pref);
+    saveTheme(pref);
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <label className="text-sm font-medium">Theme</label>
+        <p className="text-xs text-muted-foreground mt-0.5">Defaults to your system setting</p>
+      </div>
+      <div className="flex gap-2">
+        {THEME_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => handleSelect(opt.value)}
+            className={`px-4 py-2 rounded-md text-sm transition-colors ${
+              theme === opt.value
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground [@media(hover:hover)]:hover:bg-secondary/80"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AuthTab() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -689,7 +734,7 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
         </SheetHeader>
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           <Tabs defaultValue="voice-bank" className="flex-1 min-h-0">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="voice-bank" className="text-xs">
                 Voice
               </TabsTrigger>
@@ -701,6 +746,9 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
               </TabsTrigger>
               <TabsTrigger value="language" className="text-xs">
                 Language
+              </TabsTrigger>
+              <TabsTrigger value="appearance" className="text-xs">
+                Style
               </TabsTrigger>
               <TabsTrigger value="auth" className="text-xs">
                 Auth
@@ -718,6 +766,9 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
             </TabsContent>
             <TabsContent value="language" className="mt-4">
               <LanguageTab />
+            </TabsContent>
+            <TabsContent value="appearance" className="mt-4">
+              <AppearanceTab />
             </TabsContent>
             <TabsContent value="auth" className="mt-4">
               <AuthTab />
