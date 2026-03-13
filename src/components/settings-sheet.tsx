@@ -641,10 +641,71 @@ function ApiKeysTab() {
 }
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "dark", label: "Dark" },
   { value: "system", label: "System" },
   { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
 ];
+
+function ThemeCardPreview({ value }: { value: ThemePreference }) {
+  const lBg = "#e8e3db", lPill = "#c9c3bb", lLine = "#bfb9b0", lInput = "#ffffff";
+  const dBg = "#232323", dPill = "#141414", dLine = "#363636", dInput = "#2d2d2d";
+
+  if (value === "light") {
+    return (
+      <div className="w-full h-full flex flex-col p-3" style={{ backgroundColor: lBg }}>
+        <div className="flex justify-end mb-2.5">
+          <div className="h-2.5 w-12 rounded-full" style={{ backgroundColor: lPill }} />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="h-1.5 w-10 rounded-full" style={{ backgroundColor: lLine }} />
+          <div className="h-1.5 w-14 rounded-full" style={{ backgroundColor: lLine }} />
+        </div>
+        <div className="h-7 rounded-lg mt-2" style={{ backgroundColor: lInput }} />
+      </div>
+    );
+  }
+
+  if (value === "dark") {
+    return (
+      <div className="w-full h-full flex flex-col p-3" style={{ backgroundColor: dBg }}>
+        <div className="flex justify-end mb-2.5">
+          <div className="h-2.5 w-12 rounded-full" style={{ backgroundColor: dPill }} />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="h-1.5 w-10 rounded-full" style={{ backgroundColor: dLine }} />
+          <div className="h-1.5 w-14 rounded-full" style={{ backgroundColor: dLine }} />
+        </div>
+        <div className="h-7 rounded-lg mt-2" style={{ backgroundColor: dInput }} />
+      </div>
+    );
+  }
+
+  // system: split — left: dark, right: light
+  return (
+    <div className="flex w-full h-full">
+      <div className="w-1/2 h-full flex flex-col p-2.5 overflow-hidden" style={{ backgroundColor: dBg }}>
+        <div className="flex justify-end mb-2.5">
+          <div className="h-2.5 w-9 rounded-full" style={{ backgroundColor: dPill }} />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: dLine }} />
+          <div className="h-1.5 w-10 rounded-full" style={{ backgroundColor: dLine }} />
+        </div>
+        <div className="h-7 rounded-l-lg mt-2" style={{ backgroundColor: dInput }} />
+      </div>
+      <div className="w-1/2 h-full flex flex-col p-2.5 overflow-hidden" style={{ backgroundColor: lBg }}>
+        <div className="flex justify-end mb-2.5">
+          <div className="h-2.5 w-9 rounded-full" style={{ backgroundColor: lPill }} />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: lLine }} />
+          <div className="h-1.5 w-10 rounded-full" style={{ backgroundColor: lLine }} />
+        </div>
+        <div className="h-7 rounded-r-lg mt-2" style={{ backgroundColor: lInput }} />
+      </div>
+    </div>
+  );
+}
 
 function AppearanceTab() {
   const [theme, setTheme] = useState<ThemePreference>("system");
@@ -660,23 +721,26 @@ function AppearanceTab() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <label className="text-sm font-medium">Theme</label>
-        <p className="text-xs text-muted-foreground mt-0.5">Defaults to your system setting</p>
-      </div>
-      <div className="flex gap-2">
+    <div className="flex flex-col gap-4">
+      <p className="text-sm font-medium">Color mode</p>
+      <div className="flex gap-4">
         {THEME_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             onClick={() => handleSelect(opt.value)}
-            className={`px-4 py-2 rounded-md text-sm transition-colors ${
-              theme === opt.value
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground [@media(hover:hover)]:hover:bg-secondary/80"
-            }`}
+            className="flex flex-col items-center gap-2"
+            aria-label={opt.label}
           >
-            {opt.label}
+            <div
+              className={`w-[120px] h-[90px] rounded-xl overflow-hidden border-2 transition-all ${
+                theme === opt.value ? "border-blue-500" : "border-transparent"
+              }`}
+            >
+              <ThemeCardPreview value={opt.value} />
+            </div>
+            <span className={`text-sm transition-colors ${theme === opt.value ? "text-foreground" : "text-muted-foreground"}`}>
+              {opt.label}
+            </span>
           </button>
         ))}
       </div>
@@ -733,13 +797,13 @@ export function SettingsSheet({ children }: { children: React.ReactNode }) {
           <SheetTitle className="tracking-[-0.02em] font-medium">Settings</SheetTitle>
         </SheetHeader>
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
-          <Tabs defaultValue="voice-bank" className="flex-1 min-h-0">
+          <Tabs defaultValue="strategy" className="flex-1 min-h-0">
             <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="voice-bank" className="text-xs">
-                Voice
-              </TabsTrigger>
               <TabsTrigger value="strategy" className="text-xs">
                 Strategy
+              </TabsTrigger>
+              <TabsTrigger value="voice-bank" className="text-xs">
+                Voice
               </TabsTrigger>
               <TabsTrigger value="api-keys" className="text-xs">
                 API

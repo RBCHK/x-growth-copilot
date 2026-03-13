@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Settings, Trash2, MoreHorizontal, Pin, PinOff, Pencil, FileEdit, FilePlus, MessageSquare, FileText, AlignLeft, BookOpen, Calendar, CalendarX, ExternalLink, TrendingUp, BarChart3, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Settings, Trash2, MoreHorizontal, Pin, PinOff, Pencil, FileEdit, FilePlus, MessageSquare, FileText, AlignLeft, BookOpen, Calendar, CalendarX, ExternalLink, TrendingUp, BarChart3, PanelLeftClose, PanelLeft, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,7 @@ export function DraftItem({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [editTitle, setEditTitle] = useState(draft.title);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(false);
 
   useEffect(() => {
     if (isEditing) {
@@ -150,7 +151,7 @@ export function DraftItem({
           </span>
         )}
       </div>
-      <DropdownMenu onOpenChange={setMenuOpen}>
+      <DropdownMenu onOpenChange={(open) => { setMenuOpen(open); if (!open) setPendingDelete(false); }}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -175,11 +176,15 @@ export function DraftItem({
             Rename
           </DropdownMenuItem>
           <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+            className={pendingDelete ? "text-destructive focus:text-destructive font-medium" : "focus:text-foreground"}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (pendingDelete) { handleDelete(); }
+              else { setPendingDelete(true); e.preventDefault(); }
+            }}
           >
-            <Trash2 className="h-4 w-4" />
-            Delete
+            {pendingDelete ? <Check className="h-4 w-4 text-destructive" /> : <Trash2 className="h-4 w-4" />}
+            {pendingDelete ? "Confirm" : "Delete"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

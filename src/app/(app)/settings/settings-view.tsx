@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, X } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Trash2, X, Bot, TrendingUp, Lightbulb, Download, Search, BarChart3 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ import { MODEL_OPTIONS, MODEL_STORAGE_KEY, getStoredModel } from "@/lib/model";
 import { getStoredLanguageSettings } from "@/components/settings-sheet";
 import { type ThemePreference, applyTheme, saveTheme, getStoredTheme } from "@/lib/theme";
 import { PageContainer } from "@/components/page-container";
+import { getAgentLastRuns, type AgentLastRuns } from "@/app/actions/agents";
 
 interface VoiceBankEntry {
   id: string;
@@ -613,10 +614,71 @@ function ApiKeysTab() {
 }
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "dark", label: "Dark" },
   { value: "system", label: "System" },
   { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
 ];
+
+function ThemeCardPreview({ value }: { value: ThemePreference }) {
+  const lBg = "#e8e3db", lPill = "#c9c3bb", lLine = "#bfb9b0", lInput = "#ffffff";
+  const dBg = "#232323", dPill = "#141414", dLine = "#363636", dInput = "#2d2d2d";
+
+  if (value === "light") {
+    return (
+      <div className="w-full h-full flex flex-col p-3" style={{ backgroundColor: lBg }}>
+        <div className="flex justify-end mb-2.5">
+          <div className="h-2.5 w-12 rounded-full" style={{ backgroundColor: lPill }} />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="h-1.5 w-10 rounded-full" style={{ backgroundColor: lLine }} />
+          <div className="h-1.5 w-14 rounded-full" style={{ backgroundColor: lLine }} />
+        </div>
+        <div className="h-7 rounded-lg mt-2" style={{ backgroundColor: lInput }} />
+      </div>
+    );
+  }
+
+  if (value === "dark") {
+    return (
+      <div className="w-full h-full flex flex-col p-3" style={{ backgroundColor: dBg }}>
+        <div className="flex justify-end mb-2.5">
+          <div className="h-2.5 w-12 rounded-full" style={{ backgroundColor: dPill }} />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="h-1.5 w-10 rounded-full" style={{ backgroundColor: dLine }} />
+          <div className="h-1.5 w-14 rounded-full" style={{ backgroundColor: dLine }} />
+        </div>
+        <div className="h-7 rounded-lg mt-2" style={{ backgroundColor: dInput }} />
+      </div>
+    );
+  }
+
+  // system: split — left: dark, right: light
+  return (
+    <div className="flex w-full h-full">
+      <div className="w-1/2 h-full flex flex-col p-2.5 overflow-hidden" style={{ backgroundColor: dBg }}>
+        <div className="flex justify-end mb-2.5">
+          <div className="h-2.5 w-9 rounded-full" style={{ backgroundColor: dPill }} />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: dLine }} />
+          <div className="h-1.5 w-10 rounded-full" style={{ backgroundColor: dLine }} />
+        </div>
+        <div className="h-7 rounded-l-lg mt-2" style={{ backgroundColor: dInput }} />
+      </div>
+      <div className="w-1/2 h-full flex flex-col p-2.5 overflow-hidden" style={{ backgroundColor: lBg }}>
+        <div className="flex justify-end mb-2.5">
+          <div className="h-2.5 w-9 rounded-full" style={{ backgroundColor: lPill }} />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: lLine }} />
+          <div className="h-1.5 w-10 rounded-full" style={{ backgroundColor: lLine }} />
+        </div>
+        <div className="h-7 rounded-r-lg mt-2" style={{ backgroundColor: lInput }} />
+      </div>
+    </div>
+  );
+}
 
 function AppearanceTab() {
   const [theme, setTheme] = useState<ThemePreference>("system");
@@ -632,23 +694,26 @@ function AppearanceTab() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <label className="text-sm font-medium">Theme</label>
-        <p className="text-xs text-muted-foreground mt-0.5">Defaults to your system setting</p>
-      </div>
-      <div className="flex gap-2">
+    <div className="flex flex-col gap-4">
+      <p className="text-sm font-medium">Color mode</p>
+      <div className="flex gap-4">
         {THEME_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             onClick={() => handleSelect(opt.value)}
-            className={`px-4 py-2 rounded-md text-sm transition-colors ${
-              theme === opt.value
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground [@media(hover:hover)]:hover:bg-secondary/80"
-            }`}
+            className="flex flex-col items-center gap-2"
+            aria-label={opt.label}
           >
-            {opt.label}
+            <div
+              className={`w-[120px] h-[90px] rounded-xl overflow-hidden border-2 transition-all ${
+                theme === opt.value ? "border-blue-500" : "border-transparent"
+              }`}
+            >
+              <ThemeCardPreview value={opt.value} />
+            </div>
+            <span className={`text-sm transition-colors ${theme === opt.value ? "text-foreground" : "text-muted-foreground"}`}>
+              {opt.label}
+            </span>
           </button>
         ))}
       </div>
@@ -696,51 +761,248 @@ function AuthTab() {
   );
 }
 
+interface AgentDef {
+  key: keyof AgentLastRuns;
+  label: string;
+  description: string;
+  schedule: string;
+  icon: React.ReactNode;
+  daily: boolean;
+  utcHour: number;
+  utcMinute: number;
+  weekdayIndex?: number; // 0=Sun,1=Mon,...
+}
+
+const AGENT_DEFS: AgentDef[] = [
+  {
+    key: "followersSnapshot",
+    label: "Followers Snapshot",
+    description: "Records current follower count and delta",
+    schedule: "Daily at 6:00 UTC",
+    icon: <TrendingUp className="h-4 w-4" />,
+    daily: true,
+    utcHour: 6,
+    utcMinute: 0,
+  },
+  {
+    key: "trendSnapshot",
+    label: "Trend Snapshot",
+    description: "Captures personalized trending topics",
+    schedule: "Daily at 16:15 UTC",
+    icon: <BarChart3 className="h-4 w-4" />,
+    daily: true,
+    utcHour: 16,
+    utcMinute: 15,
+  },
+  {
+    key: "dailyInsight",
+    label: "Daily Insight",
+    description: "Generates 5 brief AI insights from latest data",
+    schedule: "Daily at 16:30 UTC",
+    icon: <Lightbulb className="h-4 w-4" />,
+    daily: true,
+    utcHour: 16,
+    utcMinute: 30,
+  },
+  {
+    key: "xImport",
+    label: "X Import",
+    description: "Imports posts from X API",
+    schedule: "Mondays at 4:00 UTC",
+    icon: <Download className="h-4 w-4" />,
+    daily: false,
+    utcHour: 4,
+    utcMinute: 0,
+    weekdayIndex: 1,
+  },
+  {
+    key: "researcher",
+    label: "Researcher",
+    description: "Searches web for X growth tactics and saves notes",
+    schedule: "Mondays at 4:30 UTC",
+    icon: <Search className="h-4 w-4" />,
+    daily: false,
+    utcHour: 4,
+    utcMinute: 30,
+    weekdayIndex: 1,
+  },
+  {
+    key: "strategist",
+    label: "Strategist",
+    description: "Analyses 30-day performance and updates strategy",
+    schedule: "Mondays at 14:00 UTC",
+    icon: <Bot className="h-4 w-4" />,
+    daily: false,
+    utcHour: 14,
+    utcMinute: 0,
+    weekdayIndex: 1,
+  },
+];
+
+function getNextRun(def: AgentDef): Date {
+  const now = new Date();
+  const next = new Date(now);
+  next.setUTCHours(def.utcHour, def.utcMinute, 0, 0);
+
+  if (def.daily) {
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+  } else {
+    const targetDay = def.weekdayIndex ?? 1;
+    const currentDay = now.getUTCDay();
+    let daysUntil = (targetDay - currentDay + 7) % 7;
+    if (daysUntil === 0 && next <= now) daysUntil = 7;
+    next.setUTCDate(now.getUTCDate() + daysUntil);
+  }
+  return next;
+}
+
+function formatRelative(date: Date): string {
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function formatUntil(date: Date): string {
+  const diff = Math.floor((date.getTime() - Date.now()) / 1000);
+  if (diff < 60) return "< 1m";
+  if (diff < 3600) return `in ${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `in ${Math.floor(diff / 3600)}h`;
+  return `in ${Math.floor(diff / 86400)}d`;
+}
+
+function AgentsTab() {
+  const [lastRuns, setLastRuns] = useState<AgentLastRuns | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    getAgentLastRuns().then(setLastRuns).catch(() => setLastRuns(null));
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const daily = AGENT_DEFS.filter((d) => d.daily);
+  const weekly = AGENT_DEFS.filter((d) => !d.daily);
+
+  function renderGroup(title: string, defs: AgentDef[]) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+        <div className="rounded-xl border border-border overflow-hidden">
+          {defs.map((def, i) => {
+            const lastRun = lastRuns ? lastRuns[def.key] : undefined;
+            const next = getNextRun(def);
+            return (
+              <div
+                key={def.key}
+                className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-border" : ""}`}
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  {def.icon}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <p className="text-sm font-medium leading-none">{def.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{def.description}</p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-0.5">
+                  <span className="text-xs font-medium text-foreground/70">{def.schedule}</span>
+                  <div className="flex items-center gap-2">
+                    {lastRun ? (
+                      <span className="text-xs text-muted-foreground">{formatRelative(new Date(lastRun))}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/50">never</span>
+                    )}
+                    <span className="text-xs text-blue-500">{formatUntil(next)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // suppress unused var warning — now is read by getNextRun indirectly via closure refresh
+  void now;
+
+  return (
+    <div className="flex flex-col gap-5">
+      {renderGroup("Daily", daily)}
+      {renderGroup("Weekly", weekly)}
+    </div>
+  );
+}
+
+type SettingsSection = "voice-bank" | "strategy" | "agents" | "api-keys" | "language" | "appearance" | "auth";
+
+const SETTINGS_NAV: { value: SettingsSection; label: string }[] = [
+  { value: "strategy", label: "Strategy" },
+  { value: "voice-bank", label: "Voice Bank" },
+  { value: "agents", label: "Agents" },
+  { value: "api-keys", label: "API" },
+  { value: "language", label: "Language" },
+  { value: "appearance", label: "Appearance" },
+  { value: "auth", label: "Auth" },
+];
+
 export function SettingsView() {
+  const [active, setActive] = useState<SettingsSection>("strategy");
+
   return (
     <PageContainer className="flex flex-col h-full overflow-hidden">
       <h1 className="text-xl font-semibold tracking-[-0.02em] mb-6">Settings</h1>
-      <Tabs defaultValue="voice-bank" className="flex flex-col flex-1 min-h-0">
-        <TabsList className="grid w-full grid-cols-6 shrink-0">
-          <TabsTrigger value="voice-bank" className="text-xs">Voice</TabsTrigger>
-          <TabsTrigger value="strategy" className="text-xs">Strategy</TabsTrigger>
-          <TabsTrigger value="api-keys" className="text-xs">API</TabsTrigger>
-          <TabsTrigger value="language" className="text-xs">Language</TabsTrigger>
-          <TabsTrigger value="appearance" className="text-xs">Style</TabsTrigger>
-          <TabsTrigger value="auth" className="text-xs">Auth</TabsTrigger>
-        </TabsList>
 
-        <TabsContent value="voice-bank" className="mt-4 flex-1 min-h-0 overflow-y-auto">
-          <div className="max-w-2xl">
-            <VoiceBankTab />
+      {/* Mobile: horizontal scrollable tabs */}
+      <div className="md:hidden flex gap-1 overflow-x-auto pb-2 shrink-0 scrollbar-hide">
+        {SETTINGS_NAV.map((item) => (
+          <button
+            key={item.value}
+            onClick={() => setActive(item.value)}
+            className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              active === item.value
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground [@media(hover:hover)]:hover:text-foreground [@media(hover:hover)]:hover:bg-muted"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop: sidebar + content */}
+      <div className="flex flex-1 min-h-0 gap-8">
+        {/* Sidebar */}
+        <nav className="hidden md:flex flex-col gap-0.5 w-44 shrink-0">
+          {SETTINGS_NAV.map((item) => (
+            <button
+              key={item.value}
+              onClick={() => setActive(item.value)}
+              className={`text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                active === item.value
+                  ? "bg-muted font-medium text-foreground"
+                  : "text-muted-foreground [@media(hover:hover)]:hover:text-foreground [@media(hover:hover)]:hover:bg-muted/60"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 overflow-y-auto">
+          <div className="max-w-2xl pb-8">
+            {active === "voice-bank" && <VoiceBankTab />}
+            {active === "strategy" && <StrategyConfigTab />}
+            {active === "agents" && <AgentsTab />}
+            {active === "api-keys" && <ApiKeysTab />}
+            {active === "language" && <LanguageTab />}
+            {active === "appearance" && <AppearanceTab />}
+            {active === "auth" && <AuthTab />}
           </div>
-        </TabsContent>
-        <TabsContent value="strategy" className="mt-4 flex-1 min-h-0 overflow-y-auto">
-          <div className="max-w-2xl">
-            <StrategyConfigTab />
-          </div>
-        </TabsContent>
-        <TabsContent value="api-keys" className="mt-4">
-          <div className="max-w-2xl">
-            <ApiKeysTab />
-          </div>
-        </TabsContent>
-        <TabsContent value="language" className="mt-4">
-          <div className="max-w-2xl">
-            <LanguageTab />
-          </div>
-        </TabsContent>
-        <TabsContent value="appearance" className="mt-4">
-          <div className="max-w-2xl">
-            <AppearanceTab />
-          </div>
-        </TabsContent>
-        <TabsContent value="auth" className="mt-4">
-          <div className="max-w-2xl">
-            <AuthTab />
-          </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </PageContainer>
   );
 }
