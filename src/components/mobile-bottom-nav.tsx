@@ -72,7 +72,7 @@ export function MobileBottomNav() {
 
   return (
     <>
-      <nav className="flex md:hidden min-h-14 shrink-0 items-center justify-around border-t border-border px-2 pb-[env(safe-area-inset-bottom)]">
+      <nav className="flex md:hidden shrink-0 items-start justify-around border-t border-border px-2 pt-2 pb-[env(safe-area-inset-bottom)]">
         <NavLink href="/" icon={Home} label="Home" />
         <NavButton icon={FileEdit} label="Drafts" tab="drafts" />
         <NavButton icon={Calendar} label="Schedule" tab="scheduled" />
