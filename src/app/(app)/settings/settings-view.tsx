@@ -301,7 +301,7 @@ function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayTog
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium">{label}</p>
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <div className="min-w-0 overflow-x-auto rounded-xl border border-border">
       <div className="min-w-[520px]">
       <div className="grid grid-cols-[110px_repeat(8,1fr)] bg-muted/20 px-1">
           <div className="px-3 py-3 text-xs text-muted-foreground">Time</div>

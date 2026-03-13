@@ -19,7 +19,7 @@ export function AnalyticsView() {
   return (
     <PageContainer className="space-y-4">
       {/* Top bar */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-lg font-semibold">Analytics</h1>
           {dateRange && (
@@ -28,7 +28,7 @@ export function AnalyticsView() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <PeriodPicker />
           <ImportPanel />
         </div>

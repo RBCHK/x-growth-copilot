@@ -14,14 +14,14 @@ import { getConversations, deleteConversation, updateConversation, createConvers
 import { getScheduledSlots, ensureSlotsForWeek, toggleSlotPosted, deleteSlot, unscheduleSlot } from "@/app/actions/schedule";
 import type { Draft, ScheduledSlot, SlotStatus, SlotType } from "@/lib/types";
 
-const slotTypeIcon: Record<SlotType, React.ReactNode> = {
+export const slotTypeIcon: Record<SlotType, React.ReactNode> = {
   Reply: <MessageSquare className="h-3.5 w-3.5 shrink-0" />,
   Post: <FileText className="h-3.5 w-3.5 shrink-0" />,
   Thread: <AlignLeft className="h-3.5 w-3.5 shrink-0" />,
   Article: <BookOpen className="h-3.5 w-3.5 shrink-0" />,
 };
 
-function slotStatusConfig(status: SlotStatus) {
+export function slotStatusConfig(status: SlotStatus) {
   switch (status) {
     case "empty":
       return {
@@ -44,7 +44,7 @@ function slotStatusConfig(status: SlotStatus) {
   }
 }
 
-function formatSlotDate(date: Date | string): string {
+export function formatSlotDate(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleDateString("en-US", {
     weekday: "short",
@@ -54,7 +54,7 @@ function formatSlotDate(date: Date | string): string {
   });
 }
 
-function groupSlotsByDate(slots: ScheduledSlot[]) {
+export function groupSlotsByDate(slots: ScheduledSlot[]) {
   const groups: Record<string, ScheduledSlot[]> = {};
   for (const slot of slots) {
     const key = formatSlotDate(slot.date);
@@ -64,7 +64,7 @@ function groupSlotsByDate(slots: ScheduledSlot[]) {
   return Object.entries(groups);
 }
 
-function DraftItem({
+export function DraftItem({
   draft,
   isActive,
   isEditing,
@@ -187,7 +187,7 @@ function DraftItem({
   );
 }
 
-function SlotItem({
+export function SlotItem({
   slot,
   onTogglePosted,
   onDelete,
