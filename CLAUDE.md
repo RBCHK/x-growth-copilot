@@ -42,6 +42,21 @@ IMPORTANT: This app runs as a PWA on iPhone — always apply these rules when to
 - **Hover states**: Wrap `hover:` utilities with `[@media(hover:hover)]:hover:` — bare `hover:` sticks on touch
 - **Test**: Safari DevTools → Responsive → iPhone 15 Pro (Dynamic Island) before considering mobile done
 
+## Web Quality Standards
+
+- **Core Web Vitals**: LCP < 2.5s, FID < 100ms, CLS < 0.1
+- **Lighthouse**: Performance and Accessibility scores > 90
+- **Zero console errors** in production
+- **Accessibility**: semantic HTML, ARIA labels on interactive elements, keyboard navigable
+- **TypeScript**: no `any`, no suppressed errors
+
+## Code Review Priorities
+
+When reviewing or fixing code, classify issues by severity:
+- 🔴 **Blocker**: XSS, SQL injection, auth bypass, data loss, race conditions — fix immediately
+- 🟡 **Should fix**: N+1 queries, missing input validation, no error handling for critical paths
+- 💭 **Nice to have**: naming, docs, alternative patterns
+
 ## Testing
 
 - **Framework**: Vitest (`npm test` / `npm run test:watch`)
