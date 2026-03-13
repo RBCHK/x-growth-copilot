@@ -2,7 +2,7 @@
   "name": "X Growth Copilot",
   "short_name": "xGrowth",
   "description": "AI-powered X growth copilot",
-  "start_url": "/",
+  "start_url": "/strategist",
   "display": "standalone",
   "background_color": "#131314",
   "theme_color": "#131314",
