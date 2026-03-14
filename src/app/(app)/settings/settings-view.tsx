@@ -28,7 +28,7 @@ import { MODEL_OPTIONS, MODEL_STORAGE_KEY, getStoredModel, getStoredAgentModel, 
 import { getStoredLanguageSettings } from "@/lib/language";
 import { type ThemePreference, applyTheme, saveTheme, getStoredTheme } from "@/lib/theme";
 import { PageContainer } from "@/components/page-container";
-import { getAgentLastRuns, runAgentManually, type AgentLastRuns } from "@/app/actions/agents";
+import { getAgentLastRuns, type AgentLastRuns } from "@/app/actions/agents";
 
 interface VoiceBankEntry {
   id: string;
@@ -905,16 +905,28 @@ function AgentsTab() {
     toast.success("Model saved");
   }
 
+  const CRON_PATHS: Record<string, string> = {
+    followersSnapshot: "/api/cron/followers-snapshot",
+    trendSnapshot:     "/api/cron/trend-snapshot",
+    dailyInsight:      "/api/cron/daily-insight",
+    xImport:           "/api/cron/x-import",
+    researcher:        "/api/cron/researcher",
+    strategist:        "/api/cron/strategist",
+  };
+
   async function handleRun(key: string, label: string) {
     if (running) return;
     setRunning(key);
     try {
-      const result = await runAgentManually(key);
-      if (result.ok) {
+      const cronPath = CRON_PATHS[key];
+      if (!cronPath) throw new Error("Unknown agent");
+      const res = await fetch(cronPath);
+      const data = await res.json();
+      if (data.ok) {
         toast.success(`${label} completed`);
         getAgentLastRuns().then(setLastRuns).catch(() => {});
       } else {
-        toast.error(`${label} failed: ${result.error}`);
+        toast.error(`${label} failed: ${data.error ?? `HTTP ${res.status}`}`);
       }
     } catch (err) {
       toast.error(`${label} failed: ${err instanceof Error ? err.message : String(err)}`);
