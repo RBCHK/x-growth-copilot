@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { Message } from "@/lib/types";
 import { useTypewriter } from "@/hooks/use-typewriter";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
+
+const COLLAPSE_THRESHOLD = 300;
 
 interface ChatBubbleProps {
   message: Message;
@@ -50,17 +53,36 @@ const markdownComponents: Components = {
   strong: ({ children }) => (
     <strong className="font-semibold">{children}</strong>
   ),
+  a: ({ children, href }) => (
+    <a href={href} className="underline wrap-break-word" target="_blank" rel="noopener noreferrer">{children}</a>
+  ),
 };
 
 export function ChatBubble({ message, isStreaming = false }: ChatBubbleProps) {
   const isUser = message.role === "user";
   const displayText = useTypewriter(message.content, !isUser && isStreaming);
 
+  const isLong = isUser && message.content.length > COLLAPSE_THRESHOLD;
+  const [expanded, setExpanded] = useState(false);
+
   if (isUser) {
+    const displayContent =
+      isLong && !expanded
+        ? message.content.slice(0, COLLAPSE_THRESHOLD).trimEnd() + "…"
+        : message.content;
+
     return (
       <div data-role="user" className="animate-in slide-in-from-bottom-4 fade-in duration-300 ease-out flex w-full justify-end">
         <div className="max-w-[80%] rounded-xl rounded-br-md bg-primary px-4 py-2.5 text-base leading-relaxed text-primary-foreground">
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap wrap-break-word">{displayContent}</p>
+          {isLong && (
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="mt-1 text-xs text-primary-foreground/60 [@media(hover:hover)]:hover:text-primary-foreground/90 transition-colors"
+            >
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          )}
         </div>
       </div>
     );
