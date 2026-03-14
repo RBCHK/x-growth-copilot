@@ -15,7 +15,7 @@ export default function AppLayout({
       <div className="flex flex-1 overflow-hidden md:gap-[15px] md:px-[15px]">
         <LeftSidebarContainer />
 
-        <main className="flex flex-1 flex-col overflow-y-auto md:rounded-[12px] md:bg-sidebar">
+        <main className="flex flex-1 flex-col overflow-y-auto md:rounded-[12px] md:bg-sidebar pb-[calc(54px+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>
