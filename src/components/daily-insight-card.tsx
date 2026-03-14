@@ -12,7 +12,7 @@ interface DailyInsightCardProps {
 const FALLBACK_TEXT =
   "Привет! Я готов помочь вырастить твой X-аккаунт. Загрузи CSV из X Analytics и запусти стратегический анализ — и я начну давать ежедневные инсайты.";
 
-const ROTATION_MS = 60 * 60 * 1000; // 1 hour
+const ROTATION_MS = 15 * 60 * 1000; // 15 minutes
 
 function getHourIndex(count: number): number {
   return Math.floor(Date.now() / ROTATION_MS) % count;
@@ -41,7 +41,7 @@ export function DailyInsightCard({ insights, date }: DailyInsightCardProps) {
 
   return (
     <Card className="mx-auto w-full max-w-chat bg-transparent border-0 shadow-none">
-      <CardContent className="flex items-start gap-3 p-4">
+      <CardContent className="flex items-start gap-3 p-0">
         <Sparkles className="size-4 shrink-0 mt-0.5 text-muted-foreground" />
         <div className="min-w-0">
           <p className="text-sm leading-relaxed">{displayText}</p>
