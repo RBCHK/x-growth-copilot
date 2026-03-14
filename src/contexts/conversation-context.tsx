@@ -21,7 +21,7 @@ import {
 } from "@/app/actions/notes";
 import { addMessage, fetchTweetFullTextAction } from "@/app/actions/conversations";
 import { getStoredModel } from "@/lib/model";
-import { getStoredLanguageSettings } from "@/components/settings-sheet";
+import { getStoredLanguageSettings } from "@/lib/language";
 
 interface ConversationContextValue {
   conversationId: string;

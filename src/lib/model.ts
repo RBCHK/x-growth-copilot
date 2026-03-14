@@ -5,7 +5,17 @@ export const MODEL_OPTIONS = [
 
 export type ModelValue = (typeof MODEL_OPTIONS)[number]["value"];
 
+// Legacy key — used for the Analyst (chat) agent
 export const MODEL_STORAGE_KEY = "xreba_model";
+
+export const AGENT_MODEL_KEYS = {
+  analyst: "xreba_model",
+  strategist: "xreba_model_strategist",
+  researcher: "xreba_model_researcher",
+  dailyInsight: "xreba_model_daily_insight",
+} as const;
+
+export type AgentKey = keyof typeof AGENT_MODEL_KEYS;
 
 export function getStoredModel(): string {
   if (typeof window === "undefined") return MODEL_OPTIONS[0].value;
@@ -14,4 +24,13 @@ export function getStoredModel(): string {
 
 export function setStoredModel(value: string): void {
   localStorage.setItem(MODEL_STORAGE_KEY, value);
+}
+
+export function getStoredAgentModel(agent: AgentKey): string {
+  if (typeof window === "undefined") return MODEL_OPTIONS[0].value;
+  return localStorage.getItem(AGENT_MODEL_KEYS[agent]) ?? MODEL_OPTIONS[0].value;
+}
+
+export function setStoredAgentModel(agent: AgentKey, value: string): void {
+  localStorage.setItem(AGENT_MODEL_KEYS[agent], value);
 }

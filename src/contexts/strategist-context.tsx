@@ -15,6 +15,7 @@ import { parseCsv } from "@/lib/csv-parser";
 import { saveAnalysis } from "@/app/actions/strategist";
 import { savePlanProposal } from "@/app/actions/plan-proposal";
 import { useXProfile } from "@/hooks/use-x-profile";
+import { getStoredAgentModel } from "@/lib/model";
 
 export type LeftTab = "analyses" | "research";
 
@@ -99,6 +100,7 @@ export function StrategistProvider({
           csvSummary: csvSummaryRef.current,
           weekStart: weekStartRef.current,
           profile: profileRef.current,
+          model: getStoredAgentModel("strategist"),
         }),
       })
   );

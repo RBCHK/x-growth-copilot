@@ -24,8 +24,8 @@ import {
   type ScheduleConfig,
 } from "@/app/actions/schedule";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage, type LanguageSettings } from "@/lib/types";
-import { MODEL_OPTIONS, MODEL_STORAGE_KEY, getStoredModel } from "@/lib/model";
-import { getStoredLanguageSettings } from "@/components/settings-sheet";
+import { MODEL_OPTIONS, MODEL_STORAGE_KEY, getStoredModel, getStoredAgentModel, setStoredAgentModel, type AgentKey } from "@/lib/model";
+import { getStoredLanguageSettings } from "@/lib/language";
 import { type ThemePreference, applyTheme, saveTheme, getStoredTheme } from "@/lib/theme";
 import { PageContainer } from "@/components/page-container";
 import { getAgentLastRuns, runAgentManually, type AgentLastRuns } from "@/app/actions/agents";
@@ -771,6 +771,8 @@ interface AgentDef {
   utcHour: number;
   utcMinute: number;
   weekdayIndex?: number; // 0=Sun,1=Mon,...
+  modelKey?: AgentKey;
+  defaultModel?: string;
 }
 
 const AGENT_DEFS: AgentDef[] = [
@@ -803,6 +805,8 @@ const AGENT_DEFS: AgentDef[] = [
     daily: true,
     utcHour: 16,
     utcMinute: 30,
+    modelKey: "dailyInsight",
+    defaultModel: "claude-haiku-4-5-20251001",
   },
   {
     key: "xImport",
@@ -825,6 +829,8 @@ const AGENT_DEFS: AgentDef[] = [
     utcHour: 4,
     utcMinute: 30,
     weekdayIndex: 1,
+    modelKey: "researcher",
+    defaultModel: "claude-sonnet-4-6",
   },
   {
     key: "strategist",
@@ -836,6 +842,8 @@ const AGENT_DEFS: AgentDef[] = [
     utcHour: 14,
     utcMinute: 0,
     weekdayIndex: 1,
+    modelKey: "strategist",
+    defaultModel: "claude-sonnet-4-6",
   },
 ];
 
@@ -876,12 +884,26 @@ function AgentsTab() {
   const [lastRuns, setLastRuns] = useState<AgentLastRuns | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [running, setRunning] = useState<string | null>(null);
+  const [agentModels, setAgentModels] = useState<Partial<Record<AgentKey, string>>>({});
 
   useEffect(() => {
     getAgentLastRuns().then(setLastRuns).catch(() => setLastRuns(null));
     const timer = setInterval(() => setNow(new Date()), 30_000);
+
+    const modelEntries = AGENT_DEFS.filter((d) => d.modelKey).map((d) => [
+      d.modelKey!,
+      getStoredAgentModel(d.modelKey!),
+    ]);
+    setAgentModels(Object.fromEntries(modelEntries));
+
     return () => clearInterval(timer);
   }, []);
+
+  function handleModelChange(modelKey: AgentKey, value: string) {
+    setStoredAgentModel(modelKey, value);
+    setAgentModels((prev) => ({ ...prev, [modelKey]: value }));
+    toast.success("Model saved");
+  }
 
   async function handleRun(key: string, label: string) {
     if (running) return;
@@ -923,6 +945,23 @@ function AgentsTab() {
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <p className="text-sm font-medium leading-none">{def.label}</p>
                   <p className="text-xs text-muted-foreground truncate">{def.description}</p>
+                  {def.modelKey && (
+                    <Select
+                      value={agentModels[def.modelKey] ?? def.defaultModel}
+                      onValueChange={(v) => handleModelChange(def.modelKey!, v)}
+                    >
+                      <SelectTrigger className="mt-1.5 h-6 w-fit gap-1.5 border-border/50 px-2 text-xs text-muted-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MODEL_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                            {opt.shortLabel}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <div className="flex flex-col items-end gap-0.5">
