@@ -19,6 +19,8 @@ import { getVoiceBankEntries, addVoiceBankEntry, removeVoiceBankEntry } from "@/
 import {
   getScheduleConfig,
   saveScheduleConfig,
+  getGoalConfig,
+  updateGoalConfig,
   type DayKey,
   type SlotRow,
   type ScheduleConfig,
@@ -405,6 +407,66 @@ function ScheduleSection({ label, slots, onAdd, onRemove, onTimeChange, onDayTog
   );
 }
 
+function GoalConfigSection() {
+  const [targetFollowers, setTargetFollowers] = useState("100000");
+  const [targetDate, setTargetDate] = useState("2026-12-31");
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    getGoalConfig().then((cfg) => {
+      if (cfg?.targetFollowers) setTargetFollowers(String(cfg.targetFollowers));
+      if (cfg?.targetDate) setTargetDate(cfg.targetDate.toISOString().split("T")[0]);
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await updateGoalConfig({
+        targetFollowers: parseInt(targetFollowers),
+        targetDate: new Date(`${targetDate}T00:00:00.000Z`),
+      });
+      toast.success("Goal saved");
+    } catch {
+      toast.error("Failed to save goal");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!loaded) return null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm font-medium">Follower goal</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-1.5 flex-1">
+          <label className="text-xs text-muted-foreground">Target followers</label>
+          <Input
+            type="number"
+            value={targetFollowers}
+            onChange={(e) => setTargetFollowers(e.target.value)}
+            placeholder="100000"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <label className="text-xs text-muted-foreground">Target date</label>
+          <Input
+            type="date"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+          />
+        </div>
+        <Button onClick={handleSave} disabled={saving} size="sm" className="sm:mb-0 shrink-0">
+          {saving ? "Saving…" : "Save"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function StrategyConfigTab() {
   const [config, setConfig] = useState<ScheduleConfig>(DEFAULT_SCHEDULE);
   const configRef = useRef<ScheduleConfig>(DEFAULT_SCHEDULE);
@@ -507,21 +569,25 @@ function StrategyConfigTab() {
   ];
 
   return (
-    <div className="flex flex-col gap-5">
-      {sections.map(({ label, section }) => (
-        <ScheduleSection
-          key={section}
-          label={label}
-          section={section}
-          slots={config[section].slots}
-          onAdd={() => addSlot(section)}
-          onRemove={(id) => removeSlot(section, id)}
-          onTimeChange={(id, time) => updateTime(section, id, time)}
-          onDayToggle={(id, day) => toggleDay(section, id, day)}
-          onAllDaysToggle={(id, value) => toggleAllDays(section, id, value)}
-          onTimeEditDone={() => finishTimeEdit(section)}
-        />
-      ))}
+    <div className="flex flex-col gap-6">
+      <GoalConfigSection />
+      <Separator />
+      <div className="flex flex-col gap-5">
+        {sections.map(({ label, section }) => (
+          <ScheduleSection
+            key={section}
+            label={label}
+            section={section}
+            slots={config[section].slots}
+            onAdd={() => addSlot(section)}
+            onRemove={(id) => removeSlot(section, id)}
+            onTimeChange={(id, time) => updateTime(section, id, time)}
+            onDayToggle={(id, day) => toggleDay(section, id, day)}
+            onAllDaysToggle={(id, value) => toggleAllDays(section, id, value)}
+            onTimeEditDone={() => finishTimeEdit(section)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

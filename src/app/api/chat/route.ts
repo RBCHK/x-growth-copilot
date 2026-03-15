@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  try {
   const body = await req.json();
   const {
     messages,
@@ -131,4 +132,11 @@ export async function POST(req: NextRequest) {
   });
 
   return result.toUIMessageStreamResponse();
+  } catch (err) {
+    console.error("[chat]", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
+  }
 }
