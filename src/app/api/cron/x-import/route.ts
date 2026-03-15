@@ -6,6 +6,8 @@ import type { XPostType as PrismaXPostType } from "@/generated/prisma";
 
 export const maxDuration = 60;
 
+const REFRESH_DAYS = 7;
+
 function detectPostType(text: string): PrismaXPostType {
   return text.startsWith("@") ? "REPLY" : "POST";
 }
@@ -16,72 +18,126 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const mode = req.nextUrl.searchParams.get("mode"); // "refresh" or default (new posts)
+
   try {
-  const { id: userId, username } = await fetchCurrentUser();
+    const { id: userId, username } = await fetchCurrentUser();
 
-  // Fetch since the most recent post in DB
-  const latest = await prisma.xPost.findFirst({
-    orderBy: { date: "desc" },
-    select: { postId: true },
-  });
+    let tweets;
+    if (mode === "refresh") {
+      // Refresh mode: re-fetch metrics for posts from the last REFRESH_DAYS days
+      const startTime = new Date();
+      startTime.setUTCDate(startTime.getUTCDate() - REFRESH_DAYS);
+      tweets = await fetchUserTweetsPaginated(userId, username, {
+        startTime: startTime.toISOString(),
+      });
+    } else {
+      // Default mode: fetch only new posts since the most recent in DB
+      const latest = await prisma.xPost.findFirst({
+        orderBy: { date: "desc" },
+        select: { postId: true },
+      });
+      tweets = await fetchUserTweetsPaginated(userId, username, {
+        sinceId: latest?.postId,
+      });
+    }
 
-  const tweets = await fetchUserTweetsPaginated(userId, username, {
-    sinceId: latest?.postId,
-  });
+    let imported = 0;
+    let updated = 0;
+    let snapshots = 0;
 
-  let imported = 0;
-  let updated = 0;
+    const snapshotDate = new Date();
+    snapshotDate.setUTCHours(0, 0, 0, 0);
 
-  for (const tweet of tweets) {
-    const existing = await prisma.xPost.findUnique({
-      where: { postId: tweet.postId },
-      select: { createdAt: true },
+    for (const tweet of tweets) {
+      const existing = await prisma.xPost.findUnique({
+        where: { postId: tweet.postId },
+        select: { createdAt: true },
+      });
+
+      await prisma.xPost.upsert({
+        where: { postId: tweet.postId },
+        create: {
+          postId: tweet.postId,
+          date: tweet.createdAt,
+          text: tweet.text,
+          postLink: tweet.postLink,
+          postType: detectPostType(tweet.text),
+          impressions: tweet.impressions,
+          likes: tweet.likes,
+          engagements: tweet.engagements,
+          bookmarks: tweet.bookmarks,
+          shares: tweet.shares,
+          newFollowers: 0,
+          replies: tweet.replies,
+          reposts: tweet.reposts,
+          profileVisits: tweet.profileVisits,
+          detailExpands: 0,
+          urlClicks: tweet.urlClicks,
+        },
+        update: {
+          impressions: tweet.impressions,
+          likes: tweet.likes,
+          engagements: tweet.engagements,
+          bookmarks: tweet.bookmarks,
+          shares: tweet.shares,
+          replies: tweet.replies,
+          reposts: tweet.reposts,
+          profileVisits: tweet.profileVisits,
+          urlClicks: tweet.urlClicks,
+        },
+      });
+
+      if (existing) updated++;
+      else imported++;
+
+      // Save engagement snapshot for velocity tracking (posts < REFRESH_DAYS old)
+      const postAgeDays = (Date.now() - tweet.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+      if (postAgeDays < REFRESH_DAYS) {
+        await prisma.postEngagementSnapshot.upsert({
+          where: {
+            postId_snapshotDate: {
+              postId: tweet.postId,
+              snapshotDate: snapshotDate,
+            },
+          },
+          create: {
+            postId: tweet.postId,
+            snapshotDate: snapshotDate,
+            impressions: tweet.impressions,
+            likes: tweet.likes,
+            engagements: tweet.engagements,
+            bookmarks: tweet.bookmarks,
+            replies: tweet.replies,
+            reposts: tweet.reposts,
+            profileVisits: tweet.profileVisits,
+            urlClicks: tweet.urlClicks,
+          },
+          update: {
+            impressions: tweet.impressions,
+            likes: tweet.likes,
+            engagements: tweet.engagements,
+            bookmarks: tweet.bookmarks,
+            replies: tweet.replies,
+            reposts: tweet.reposts,
+            profileVisits: tweet.profileVisits,
+            urlClicks: tweet.urlClicks,
+          },
+        });
+        snapshots++;
+      }
+    }
+
+    revalidatePath("/analytics");
+
+    return NextResponse.json({
+      ok: true,
+      mode: mode ?? "default",
+      imported,
+      updated,
+      snapshots,
+      total: tweets.length,
     });
-
-    await prisma.xPost.upsert({
-      where: { postId: tweet.postId },
-      create: {
-        postId: tweet.postId,
-        date: tweet.createdAt,
-        text: tweet.text,
-        postLink: tweet.postLink,
-        postType: detectPostType(tweet.text),
-        impressions: tweet.impressions,
-        likes: tweet.likes,
-        engagements: tweet.engagements,
-        bookmarks: tweet.bookmarks,
-        shares: tweet.shares,
-        newFollowers: 0,
-        replies: tweet.replies,
-        reposts: tweet.reposts,
-        profileVisits: 0,
-        detailExpands: 0,
-        urlClicks: tweet.urlClicks,
-      },
-      update: {
-        impressions: tweet.impressions,
-        likes: tweet.likes,
-        engagements: tweet.engagements,
-        bookmarks: tweet.bookmarks,
-        shares: tweet.shares,
-        replies: tweet.replies,
-        reposts: tweet.reposts,
-        urlClicks: tweet.urlClicks,
-      },
-    });
-
-    if (existing) updated++;
-    else imported++;
-  }
-
-  revalidatePath("/analytics");
-
-  return NextResponse.json({
-    ok: true,
-    imported,
-    updated,
-    total: tweets.length,
-  });
   } catch (err) {
     console.error("[x-import]", err);
     return NextResponse.json(

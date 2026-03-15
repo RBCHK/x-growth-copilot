@@ -3,16 +3,19 @@
 import { prisma } from "@/lib/prisma";
 import type { TrendItem } from "@/lib/types";
 
-/** Save a batch of trend snapshots for a given date */
+/** Save a batch of trend snapshots for a given date and fetch hour */
 export async function saveTrendSnapshots(
   date: Date,
-  trends: (TrendItem & { trendingSince?: string })[]
+  trends: (TrendItem & { trendingSince?: string })[],
+  fetchHour?: number
 ): Promise<number> {
   const day = new Date(date);
+  const hour = fetchHour ?? day.getUTCHours();
   day.setUTCHours(0, 0, 0, 0);
 
   const data = trends.map((t) => ({
     date: day,
+    fetchHour: hour,
     trendName: t.trendName,
     postCount: t.postCount,
     category: t.category ?? null,
@@ -23,17 +26,17 @@ export async function saveTrendSnapshots(
   return result.count;
 }
 
-/** Get trends for today (or the most recent available day) */
+/** Get trends from the most recent fetch (latest date + fetchHour) */
 export async function getLatestTrends(): Promise<TrendItem[]> {
-  // Find the most recent date that has trends
+  // Find the most recent snapshot by date DESC, then fetchHour DESC
   const latest = await prisma.trendSnapshot.findFirst({
-    orderBy: { date: "desc" },
-    select: { date: true },
+    orderBy: [{ date: "desc" }, { fetchHour: "desc" }],
+    select: { date: true, fetchHour: true },
   });
   if (!latest) return [];
 
   const rows = await prisma.trendSnapshot.findMany({
-    where: { date: latest.date },
+    where: { date: latest.date, fetchHour: latest.fetchHour },
     orderBy: { postCount: "desc" },
   });
 

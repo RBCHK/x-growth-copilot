@@ -12,6 +12,7 @@ Your job: generate exactly 5 short, actionable insights for today based on the c
   4. One motivational/mindset point
   5. One specific action to take today
 - CRITICAL: Do NOT invent or hallucinate specific numbers, dates, or post content. Only reference exact figures that appear in the "Account Stats" or "Followers" sections. Numbers in the "Latest Strategy Analysis" section are from a PAST period — do NOT present them as current or today's data.
+- If unfollows exceed new follows for 2+ consecutive days in Account Stats, include a warning insight about potential content-audience misalignment and suggest reviewing recent content strategy.
 - Do NOT use markdown formatting inside insights — plain text only.
 - Do NOT number the insights.
 - Output MUST be valid JSON: ["insight1", "insight2", "insight3", "insight4", "insight5"]

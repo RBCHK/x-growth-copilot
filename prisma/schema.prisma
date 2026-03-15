@@ -201,7 +201,27 @@ model TrendSnapshot {
   trendingSince  DateTime?
   createdAt      DateTime  @default(now())
 
-  @@index([date])
+  fetchHour     Int       @default(0) // UTC hour of fetch (0-23), enables multiple snapshots per day
+
+  @@index([date, fetchHour])
+}
+
+model PostEngagementSnapshot {
+  id            String   @id @default(cuid())
+  postId        String
+  snapshotDate  DateTime
+  impressions   Int      @default(0)
+  likes         Int      @default(0)
+  engagements   Int      @default(0)
+  bookmarks     Int      @default(0)
+  replies       Int      @default(0)
+  reposts       Int      @default(0)
+  profileVisits Int      @default(0)
+  urlClicks     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@unique([postId, snapshotDate])
+  @@index([postId])
 }
 
 enum ProposalStatus {

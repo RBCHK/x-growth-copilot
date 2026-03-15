@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
 
     let saved = 0;
     if (trends.length > 0) {
-      saved = await saveTrendSnapshots(new Date(), trends);
+      const now = new Date();
+      saved = await saveTrendSnapshots(now, trends, now.getUTCHours());
     }
 
     const deleted = await cleanupOldTrends(TREND_RETENTION_DAYS);

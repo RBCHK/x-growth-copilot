@@ -22,6 +22,7 @@ export interface XTweetMetrics {
   replies: number;
   reposts: number;
   urlClicks: number;
+  profileVisits: number;
 }
 
 export interface XUserData {
@@ -165,7 +166,7 @@ export async function fetchUserTweets(
 ): Promise<XTweetMetrics[]> {
   const params: Record<string, string> = {
     max_results: Math.min(maxResults, 100).toString(),
-    'tweet.fields': 'created_at,public_metrics,non_public_metrics',
+    'tweet.fields': 'created_at,public_metrics,non_public_metrics,organic_metrics',
   };
   if (sinceId) params.since_id = sinceId;
 
@@ -184,6 +185,9 @@ export async function fetchUserTweets(
       non_public_metrics?: {
         impression_count: number;
         url_clicks: number;
+      };
+      organic_metrics?: {
+        user_profile_clicks: number;
       };
     }>;
   }>(`/users/${userId}/tweets`, params);
@@ -211,6 +215,7 @@ export async function fetchUserTweets(
       replies: pub.reply_count,
       reposts: pub.retweet_count,
       urlClicks,
+      profileVisits: tweet.organic_metrics?.user_profile_clicks ?? 0,
     };
   });
 }
@@ -278,6 +283,7 @@ export async function fetchUserTweetsPaginated(
           replies: pub.reply_count,
           reposts: pub.retweet_count,
           urlClicks,
+          profileVisits: tweet.organic_metrics?.user_profile_clicks ?? 0,
         });
       }
     }
