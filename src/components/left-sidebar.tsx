@@ -347,6 +347,12 @@ export function LeftSidebar({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const handler = () => setActiveTab("scheduled");
+    window.addEventListener("switch-to-scheduled", handler);
+    return () => window.removeEventListener("switch-to-scheduled", handler);
+  }, []);
+
   function getLocalDateStr() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;

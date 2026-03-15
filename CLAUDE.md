@@ -15,13 +15,20 @@
 
 ## Architecture Decisions
 
-**DB is the source of truth for messages** — save to DB before sending to AI.
-No URL params for passing content — save to DB first, then redirect to `/c/{id}`.
+See `docs/adr/` for full reasoning. Rules:
 
-**ConversationProvider owns all AI state** — auto-start, sending, saving.
-See JSDoc in `conversation-context.tsx` for the contract.
+- **DB is the source of truth for messages** — save to DB before sending to AI. No URL params. ([ADR-002](docs/adr/002-db-source-of-truth.md))
+- **ConversationProvider owns all AI state** — auto-start, sending, saving. ([ADR-003](docs/adr/003-conversation-provider.md))
+- **Language settings in localStorage, not DB** — per-device preference, not per-conversation.
 
-**Language settings in localStorage, not DB** — per-device preference, not per-conversation.
+## Timezone Rules
+
+IMPORTANT: xREBA is multi-user on Vercel (UTC). Never assume server TZ = user TZ.
+
+- **Client → Server**: pass `Intl.DateTimeFormat().resolvedOptions().timeZone` with server actions
+- **Server-side "today"**: `now.toLocaleDateString("en-CA", { timeZone })` → `new Date(\`${str}T00:00:00.000Z\`)`
+- **Calendar dates**: extract with `calendarDateStr()` — never `toLocaleDateString(tz)` ([ADR-001](docs/adr/001-calendar-date-convention.md))
+- **Cron routes**: `setUTCDate` / `setUTCHours` — never bare `setDate` / `setHours`
 
 ## Conventions
 
@@ -33,53 +40,19 @@ See JSDoc in `conversation-context.tsx` for the contract.
 
 ## Mobile / PWA Rules
 
-IMPORTANT: This app runs as a PWA on iPhone — always apply these rules when touching layout or UI.
+IMPORTANT: PWA on iPhone — apply when touching layout or UI.
 
-- **Safe area top**: Header must wrap content in inner `div` and use `pt-[env(safe-area-inset-top)]` on the `<header>` — never use fixed height alone
-- **Safe area bottom**: Bottom nav must use `pb-[env(safe-area-inset-bottom)]` (already in `MobileBottomNav`)
-- **Touch targets**: Minimum 44×44px for all tappable elements
-- **Input zoom**: Font size ≥ 16px on `<input>` and `<textarea>` — smaller sizes trigger iOS auto-zoom
-- **Hover states**: Wrap `hover:` utilities with `[@media(hover:hover)]:hover:` — bare `hover:` sticks on touch
-- **Test**: Safari DevTools → Responsive → iPhone 15 Pro (Dynamic Island) before considering mobile done
+- **Safe areas**: `pt-[env(safe-area-inset-top)]` on `<header>`, `pb-[env(safe-area-inset-bottom)]` on bottom nav
+- **Touch targets**: min 44×44px
+- **Input zoom**: font ≥ 16px on inputs/textareas (iOS auto-zoom)
+- **Hover**: `[@media(hover:hover)]:hover:` — never bare `hover:` (sticks on touch)
+- **Test**: Safari → iPhone 15 Pro (Dynamic Island)
 
-## Web Quality Standards
+## Quality
 
-- **Core Web Vitals**: LCP < 2.5s, FID < 100ms, CLS < 0.1
-- **Lighthouse**: Performance and Accessibility scores > 90
-- **Zero console errors** in production
-- **Accessibility**: semantic HTML, ARIA labels on interactive elements, keyboard navigable
 - **TypeScript**: no `any`, no suppressed errors
-
-## Error Handling Rules
-
-IMPORTANT: Always wrap in try/catch when there is a network, disk, or external process between your code and execution:
-
-- **External HTTP / SDK calls** — fetch, X API, Anthropic, Tavily, any third-party SDK
-- **Database** — all Prisma calls (connection drop, constraint violation, timeout)
-- **File system** — `fs.readFile`, `fs.writeFile` (file missing, no permissions)
-- **JSON.parse** — any data from external sources is never guaranteed valid
-- **Background tasks without a caller** — cron jobs, webhooks, queue workers (no one catches above)
-
-Pattern for API routes and cron handlers:
-```ts
-try {
-  // ... main logic
-  return NextResponse.json({ ok: true, ... });
-} catch (err) {
-  console.error("[route-name]", err);
-  return NextResponse.json(
-    { ok: false, error: err instanceof Error ? err.message : String(err) },
-    { status: 500 }
-  );
-}
-```
-
-## Code Review Priorities
-
-When reviewing or fixing code, classify issues by severity:
-- 🔴 **Blocker**: XSS, SQL injection, auth bypass, data loss, race conditions — fix immediately
-- 🟡 **Should fix**: N+1 queries, missing input validation, no error handling for critical paths
-- 💭 **Nice to have**: naming, docs, alternative patterns
+- **Error handling**: try/catch on all external boundaries (HTTP, Prisma, fs, JSON.parse, cron jobs)
+- **Accessibility**: semantic HTML, ARIA labels, keyboard navigable
 
 ## Testing
 

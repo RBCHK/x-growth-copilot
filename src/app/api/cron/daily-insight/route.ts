@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   // 3. Last 7 days of DailyAccountStats
   const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
   const recentStats = await prisma.dailyAccountStats.findMany({
     where: { date: { gte: sevenDaysAgo } },
     orderBy: { date: "desc" },

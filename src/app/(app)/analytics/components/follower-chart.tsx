@@ -17,11 +17,10 @@ interface CustomTooltipProps {
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload || !label) return null;
 
-  // Label is in format "YYYY-MM-DD", parse it directly to avoid timezone issues
-  const [year, month, day] = label.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-  const monthDay = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  // Parse as UTC midnight — dates are stored as UTC calendar days
+  const date = new Date(`${label}T00:00:00.000Z`);
+  const dayName = date.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" });
+  const monthDay = date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   const dateStr = `${dayName}, ${monthDay}`;
 
   return (

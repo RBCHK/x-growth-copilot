@@ -3,16 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import type { GoalChartData, GoalTrackingData, SlotStatus, SlotType } from "@/lib/types";
-import { SlotStatus as PrismaSlotStatus, SlotType as PrismaSlotType } from "@/generated/prisma";
+import { SlotType as PrismaSlotType } from "@/generated/prisma";
+import { calendarDateStr } from "@/lib/date-utils";
 
-const slotStatusToPrisma: Record<SlotStatus, PrismaSlotStatus> = {
-  empty: "EMPTY",
-  filled: "FILLED",
-  posted: "POSTED",
-};
-
-
-const slotStatusFromPrisma = (v: PrismaSlotStatus): SlotStatus =>
+const slotStatusFromPrisma = (v: string): SlotStatus =>
   v.toLowerCase() as SlotStatus;
 
 const slotTypeFromPrisma = (v: PrismaSlotType): SlotType => {
@@ -44,7 +38,7 @@ function getSlotDateTime(date: Date, timeSlot: string): Date {
   const period = match[3].toUpperCase();
   if (period === "PM" && h !== 12) h += 12;
   if (period === "AM" && h === 12) h = 0;
-  d.setHours(h, m, 0, 0);
+  d.setUTCHours(h, m, 0, 0);
   return d;
 }
 
@@ -395,54 +389,87 @@ export async function unscheduleSlot(id: string) {
   revalidatePath("/");
 }
 
+/** Parse timeSlot string like "9:00 AM" → minutes since midnight */
+function timeSlotToMinutes(timeSlot: string): number {
+  const match = timeSlot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!match) return 0;
+  let h = parseInt(match[1]);
+  const m = parseInt(match[2]);
+  const period = match[3].toUpperCase();
+  if (period === "PM" && h !== 12) h += 12;
+  if (period === "AM" && h === 12) h = 0;
+  return h * 60 + m;
+}
+
+/** Returns true if a slot is in the future relative to the user's timezone.
+ *  Compares wall-clock dates and times directly — no UTC conversion — to avoid server/client TZ mismatch. */
+function isSlotFuture(slotDate: Date, timeSlot: string, timezone: string): boolean {
+  const now = new Date();
+  // Slot dates use UTC-midnight convention: UTC date component = calendar day.
+  // Never convert via timezone — use calendarDateStr() to extract directly.
+  const slotLocalDate = calendarDateStr(slotDate);
+  const nowLocalDate = now.toLocaleDateString("en-CA", { timeZone: timezone });
+
+  if (slotLocalDate > nowLocalDate) return true;
+  if (slotLocalDate < nowLocalDate) return false;
+
+  // Same calendar day — compare time-of-day in minutes
+  const nowLocalTime = now.toLocaleString("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return timeSlotToMinutes(timeSlot) > timeSlotToMinutes(nowLocalTime);
+}
+
 export async function addToQueue(
   content: string,
   conversationId?: string,
-  slotType: "REPLY" | "POST" = "POST"
+  slotType: "REPLY" | "POST" = "POST",
+  /** User's IANA timezone, e.g. "America/Los_Angeles" — passed from client via Intl API */
+  timezone: string = "UTC"
 ) {
-  // Find first EMPTY slot of matching type
-  let slot = await prisma.scheduledSlot.findFirst({
-    where: { status: "EMPTY", slotType },
+  // "Today" in the user's timezone → UTC midnight of that calendar day (how dates are stored)
+  const now = new Date();
+  const localDateStr = now.toLocaleDateString("en-CA", { timeZone: timezone }); // "YYYY-MM-DD"
+  const todayUTCMidnight = new Date(`${localDateStr}T00:00:00.000Z`);
+
+  const candidates = await prisma.scheduledSlot.findMany({
+    where: { status: "EMPTY", slotType, date: { gte: todayUTCMidnight } },
     orderBy: [{ date: "asc" }, { timeSlot: "asc" }],
   });
 
-  // No slot found → generate next-day slots and retry once
+  let slot = candidates.find((s) => isSlotFuture(s.date, s.timeSlot, timezone)) ?? null;
+
+  // No future slot found → generate tomorrow's slots and retry once
   if (!slot) {
-    const tomorrow = new Date();
+    const tomorrow = new Date(todayUTCMidnight);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-    tomorrow.setUTCHours(0, 0, 0, 0);
     await ensureSlotsForDate(tomorrow);
-    slot = await prisma.scheduledSlot.findFirst({
-      where: { status: "EMPTY", slotType },
+    const moreCandidates = await prisma.scheduledSlot.findMany({
+      where: { status: "EMPTY", slotType, date: { gte: tomorrow } },
       orderBy: [{ date: "asc" }, { timeSlot: "asc" }],
     });
+    slot = moreCandidates[0] ?? null;
   }
 
   if (!slot) return null;
 
-  // If slot time already passed → post immediately
-  const now = new Date();
-  const slotDateTime = getSlotDateTime(slot.date, slot.timeSlot);
-  const isPast = slotDateTime < now;
-
   await prisma.scheduledSlot.update({
     where: { id: slot.id },
-    data: {
-      status: isPast ? "POSTED" : "FILLED",
-      content,
-      conversationId: conversationId ?? null,
-    },
+    data: { status: "FILLED", content, conversationId: conversationId ?? null },
   });
 
   if (conversationId) {
     await prisma.conversation.update({
       where: { id: conversationId },
-      data: { status: isPast ? "POSTED" : "SCHEDULED" },
+      data: { status: "SCHEDULED" },
     });
   }
 
   revalidatePath("/");
-  return { date: isPast ? now : slot.date, timeSlot: slot.timeSlot, isPast };
+  return { date: slot.date, timeSlot: slot.timeSlot };
 }
 
 // --- Goal Config ---

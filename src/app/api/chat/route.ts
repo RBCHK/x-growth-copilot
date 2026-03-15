@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   // Load voice bank, recent modes, trends, and top posts in parallel
   const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
 
   const [voiceBankEntries, recentModes, trends, topPosts] = await Promise.all([
     getVoiceBankEntries(contentType === "Reply" ? "REPLY" : "POST", 25),

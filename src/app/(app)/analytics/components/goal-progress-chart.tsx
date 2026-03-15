@@ -36,13 +36,14 @@ interface CustomTooltipProps {
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload?.length || !label) return null;
 
-  const [year, month, day] = label.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
+  // Parse as UTC midnight — dates are stored as UTC calendar days
+  const date = new Date(`${label}T00:00:00.000Z`);
   const dateStr = date.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   });
 
   return (
@@ -216,7 +217,7 @@ export function GoalProgressChart({ data }: Props) {
 
   // Format goal date for display
   const goalDateLabel = goalDate
-    ? new Date(goalDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+    ? new Date(goalDate).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
     : null;
 
   return (

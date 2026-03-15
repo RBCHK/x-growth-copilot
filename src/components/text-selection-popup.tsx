@@ -108,17 +108,25 @@ export function TextSelectionPopup() {
 
     try {
       const slotType = contentType === "Reply" ? "REPLY" as const : "POST" as const;
-      const result = await addToQueue(selectedText, conversationId, slotType);
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const result = await addToQueue(selectedText, conversationId, slotType, timezone);
       if (result) {
         const date = result.date.toLocaleDateString("en-US", {
           weekday: "short",
           month: "short",
           day: "numeric",
-          timeZone: "America/Los_Angeles",
+          timeZone: timezone,
         });
         toast.success(`Copied + scheduled for ${date}, ${result.timeSlot}`);
         window.dispatchEvent(new Event("slots-updated"));
-        router.push("/");
+        window.dispatchEvent(new Event("drafts-updated"));
+        const isMobile = window.matchMedia("(max-width: 767px)").matches;
+        if (isMobile) {
+          router.push("/schedule");
+        } else {
+          router.push("/");
+          window.dispatchEvent(new Event("switch-to-scheduled"));
+        }
       } else {
         toast.error("No empty slots available");
       }

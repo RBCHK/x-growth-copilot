@@ -49,12 +49,14 @@ export function GoalTrackingCard({ goalData, hasGoalConfig }: GoalTrackingCardPr
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   });
   const projectedDateStr = goalData.projectedDate
     ? new Date(goalData.projectedDate).toLocaleDateString("en-US", {
         day: "numeric",
         month: "short",
         year: "numeric",
+        timeZone: "UTC",
       })
     : null;
 
