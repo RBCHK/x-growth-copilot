@@ -6,13 +6,14 @@ import { z } from "zod";
 import { tavily } from "@tavily/core";
 import { getStrategistPrompt, buildStrategistUserMessage } from "@/prompts/strategist";
 import { getAnalyticsSummary, getAnalyticsDateRange } from "@/app/actions/analytics";
-import { getFollowersHistory } from "@/app/actions/followers";
-import { getLatestTrends } from "@/app/actions/trends";
+import { getFollowersHistoryInternal } from "@/app/actions/followers";
+import { getLatestTrendsInternal } from "@/app/actions/trends";
 import { getGoalTrackingData } from "@/app/actions/schedule";
-import { getRecentResearchNotes } from "@/app/actions/research";
-import { saveAnalysis, getAnalyses } from "@/app/actions/strategist";
+import { getRecentResearchNotesInternal } from "@/app/actions/research";
+import { saveAnalysisInternal, getAnalysesInternal } from "@/app/actions/strategist";
 import { savePlanProposal, getAcceptedProposals } from "@/app/actions/plan-proposal";
 import { getScheduleConfig } from "@/app/actions/schedule";
+import { prisma } from "@/lib/prisma";
 import { fetchUserData } from "@/lib/x-api";
 import type { ConfigChange, MetricsSnapshot, PastDecisionItem } from "@/lib/types";
 
@@ -33,6 +34,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // TODO: multi-user — iterate over all users with X API tokens
+    const users = await prisma.user.findMany({ select: { id: true } });
+    const userId = users[0]?.id;
+    if (!userId) {
+      return NextResponse.json({ error: "No users found" }, { status: 422 });
+    }
+
     // 1. Collect context in parallel
     const dateRange = await getAnalyticsDateRange();
     if (!dateRange) {
@@ -58,11 +66,11 @@ export async function GET(req: NextRequest) {
       acceptedProposals,
     ] = await Promise.all([
       getAnalyticsSummary(from30, dateRange.to),
-      getFollowersHistory(30),
-      getLatestTrends(),
-      getRecentResearchNotes(3),
+      getFollowersHistoryInternal(userId, 30),
+      getLatestTrendsInternal(),
+      getRecentResearchNotesInternal(userId, 3),
       getGoalTrackingData(),
-      getAnalyses(),
+      getAnalysesInternal(userId),
       getScheduleConfig(),
       getAcceptedProposals(30),
     ]);
@@ -175,7 +183,7 @@ export async function GET(req: NextRequest) {
     };
 
     // 8. Save analysis
-    const saved = await saveAnalysis({
+    const saved = await saveAnalysisInternal(userId, {
       csvSummary,
       searchQueries,
       recommendation: text,
