@@ -38,6 +38,8 @@ IMPORTANT: xREBA is multi-user on Vercel (UTC). Never assume server TZ = user TZ
 
 **Page layout standard**: all new `*-view.tsx` files must use `<PageContainer>` from `@/components/page-container` as the root element. Add extra classes via `className` prop (e.g. `className="space-y-4"`).
 
+**Server pages must be dynamic**: any `page.tsx` that calls Server Actions or Prisma at the top level must have `export const dynamic = "force-dynamic"`. Without it, Next.js tries to statically prerender at build time and fails without a real DB.
+
 ## Mobile / PWA Rules
 
 IMPORTANT: PWA on iPhone — apply when touching layout or UI.
