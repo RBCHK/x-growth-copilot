@@ -11,8 +11,17 @@ import {
   ChevronDown,
   ChevronUp,
   DollarSign,
+  Play,
+  Loader2,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +34,14 @@ import {
   getApiCostSummary,
   getApiCostDaily,
 } from "@/app/actions/admin";
+import {
+  MODEL_OPTIONS,
+  MODEL_STORAGE_KEY,
+  getStoredModel,
+  getStoredAgentModel,
+  setStoredAgentModel,
+  type AgentKey,
+} from "@/lib/model";
 
 // ─── Types ─────────────────────────────────────────────────
 
@@ -70,6 +87,40 @@ interface AdminViewProps {
   initialConfigs: CronConfig[];
   initialRuns: CronRun[];
 }
+
+// ─── Agent model config ─────────────────────────────────────
+
+/** Maps CronJobConfig.jobName → AgentKey for jobs that use AI models */
+const JOB_MODEL_KEY: Record<string, AgentKey> = {
+  "daily-insight": "dailyInsight",
+  researcher: "researcher",
+  strategist: "strategist",
+};
+
+/** Maps CronJobConfig.jobName → cron API path */
+const CRON_PATHS: Record<string, string> = {
+  "followers-snapshot": "/api/cron/followers-snapshot",
+  "trend-snapshot": "/api/cron/trend-snapshot",
+  "daily-insight": "/api/cron/daily-insight",
+  "x-import": "/api/cron/x-import",
+  researcher: "/api/cron/researcher",
+  strategist: "/api/cron/strategist",
+};
+
+/** Schedule times from vercel.json, displayed as UTC (PST) */
+const JOB_SCHEDULES: Record<string, string[]> = {
+  "followers-snapshot": ["Daily 06:00 UTC (22:00 PST)"],
+  "trend-snapshot": [
+    "Daily 08:00 UTC (00:00 PST)",
+    "Daily 12:00 UTC (04:00 PST)",
+    "Daily 16:15 UTC (08:15 PST)",
+    "Daily 20:00 UTC (12:00 PST)",
+  ],
+  "daily-insight": ["Daily 16:30 UTC (08:30 PST)"],
+  "x-import": ["Mon 04:00 UTC (Sun 20:00 PST) — full", "Daily 12:00 UTC (04:00 PST) — refresh"],
+  researcher: ["Mon 04:30 UTC (Sun 20:30 PST)"],
+  strategist: ["Mon 14:00 UTC (06:00 PST)"],
+};
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -127,10 +178,66 @@ export function AdminView({ initialConfigs, initialRuns }: AdminViewProps) {
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [runFilter, setRunFilter] = useState<string>("all");
 
+  // Manual run state
+  const [running, setRunning] = useState<string | null>(null);
+
+  // Agent model state (from localStorage)
+  const [agentModels, setAgentModels] = useState<Partial<Record<AgentKey, string>>>({});
+  const [chatModel, setChatModel] = useState<string>(MODEL_OPTIONS[0].value);
+
   // API Costs state
   const [costSummaries, setCostSummaries] = useState<CostSummary[]>([]);
   const [costDaily, setCostDaily] = useState<CostDaily[]>([]);
   const [costsLoaded, setCostsLoaded] = useState(false);
+
+  // Load models from localStorage on mount
+  useEffect(() => {
+    setChatModel(getStoredModel());
+    const entries = Object.entries(JOB_MODEL_KEY).map(([, agentKey]) => [
+      agentKey,
+      getStoredAgentModel(agentKey),
+    ]);
+    setAgentModels(Object.fromEntries(entries));
+  }, []);
+
+  function handleModelChange(agentKey: AgentKey, value: string) {
+    setStoredAgentModel(agentKey, value);
+    setAgentModels((prev) => ({ ...prev, [agentKey]: value }));
+    toast.success("Model saved");
+  }
+
+  function handleChatModelChange(value: string) {
+    setChatModel(value);
+    localStorage.setItem(MODEL_STORAGE_KEY, value);
+    toast.success("Chat model saved");
+  }
+
+  async function handleRun(jobName: string) {
+    if (running) return;
+    const cronPath = CRON_PATHS[jobName];
+    if (!cronPath) return;
+    setRunning(jobName);
+    try {
+      const res = await fetch(cronPath);
+      const data = await res.json();
+      if (data.ok) {
+        toast.success(`${jobName} completed`);
+        // Refresh data
+        const [newConfigs, newRuns] = await Promise.all([
+          getCronConfigs(),
+          getCronRuns({ limit: 50 }),
+        ]);
+        setConfigs(newConfigs);
+        setRuns(newRuns);
+      } else {
+        toast.error(`${jobName} failed: ${data.error ?? `HTTP ${res.status}`}`);
+      }
+    } catch (err) {
+      toast.error(`${jobName} failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setRunning(null);
+    }
+  }
 
   const loadCosts = useCallback(() => {
     startTransition(async () => {
@@ -216,42 +323,95 @@ export function AdminView({ initialConfigs, initialRuns }: AdminViewProps) {
           <TabsTrigger value="crons">Cron Jobs</TabsTrigger>
           <TabsTrigger value="runs">Run Log</TabsTrigger>
           <TabsTrigger value="costs">API Costs</TabsTrigger>
+          <TabsTrigger value="models">Models</TabsTrigger>
         </TabsList>
       </Tabs>
 
       {/* ─── Cron Jobs Tab ─────────────────────────────────── */}
       {tab === "crons" && (
-        <div className="space-y-2">
-          {configs.map((config) => (
-            <div
-              key={config.jobName}
-              className="flex items-center justify-between rounded-lg border p-4"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{config.jobName}</span>
-                  {config.schedule && (
-                    <span className="text-xs text-muted-foreground">
-                      <Clock className="mr-1 inline h-3 w-3" />
-                      {config.schedule}
-                    </span>
-                  )}
-                </div>
-                {config.description && (
-                  <p className="text-sm text-muted-foreground">{config.description}</p>
-                )}
-                {config.lastRun && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <StatusBadge status={config.lastRun.status} />
-                    <span>{formatTimeAgo(config.lastRun.startedAt)}</span>
-                    <span>{formatDuration(config.lastRun.durationMs)}</span>
+        <div className="space-y-6">
+          {[
+            { title: "Agents", items: configs.filter((c) => c.jobName in JOB_MODEL_KEY) },
+            { title: "API Requests", items: configs.filter((c) => !(c.jobName in JOB_MODEL_KEY)) },
+          ].map(({ title, items }) => (
+            <div key={title} className="space-y-2">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                {title}
+              </h3>
+              {items.map((config) => {
+                const modelKey = JOB_MODEL_KEY[config.jobName];
+                const canRun = !!CRON_PATHS[config.jobName];
+                const schedules = JOB_SCHEDULES[config.jobName];
+                return (
+                  <div
+                    key={config.jobName}
+                    className="flex items-center justify-between rounded-lg border p-4"
+                  >
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <span className="font-medium">{config.jobName}</span>
+                      {schedules && (
+                        <div className="flex items-start gap-1 text-xs text-muted-foreground">
+                          <Clock className="mt-0.5 h-3 w-3 shrink-0" />
+                          <div>
+                            {schedules.map((s, i) => (
+                              <div key={i}>{s}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {config.description && (
+                        <p className="text-sm text-muted-foreground">{config.description}</p>
+                      )}
+                      {config.lastRun && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <StatusBadge status={config.lastRun.status} />
+                          <span>{formatTimeAgo(config.lastRun.startedAt)}</span>
+                          <span>{formatDuration(config.lastRun.durationMs)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {modelKey && (
+                        <Select
+                          value={agentModels[modelKey] ?? MODEL_OPTIONS[0].value}
+                          onValueChange={(v) => handleModelChange(modelKey, v)}
+                        >
+                          <SelectTrigger className="h-8 w-fit gap-1 border-0 bg-transparent px-1 text-xs text-muted-foreground shadow-none focus:ring-0 focus:ring-offset-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MODEL_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                {opt.shortLabel}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {canRun && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9"
+                          disabled={running !== null}
+                          onClick={() => handleRun(config.jobName)}
+                          aria-label={`Run ${config.jobName}`}
+                        >
+                          {running === config.jobName ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Play className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                      <Switch
+                        checked={config.enabled}
+                        onCheckedChange={(checked) => handleToggle(config.jobName, checked)}
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
-              <Switch
-                checked={config.enabled}
-                onCheckedChange={(checked) => handleToggle(config.jobName, checked)}
-              />
+                );
+              })}
             </div>
           ))}
         </div>
@@ -380,6 +540,29 @@ export function AdminView({ initialConfigs, initialRuns }: AdminViewProps) {
               </p>
             )
           )}
+        </div>
+      )}
+      {/* ─── Models Tab ─────────────────────────────────────── */}
+      {tab === "models" && (
+        <div className="max-w-md space-y-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Chat Model</label>
+            <p className="text-xs text-muted-foreground">
+              Model used for the analyst chat conversations
+            </p>
+            <Select value={chatModel} onValueChange={handleChatModelChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MODEL_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       )}
     </PageContainer>

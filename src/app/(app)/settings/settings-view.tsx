@@ -1,19 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  Plus,
-  Trash2,
-  X,
-  Bot,
-  TrendingUp,
-  Lightbulb,
-  Download,
-  Search,
-  BarChart3,
-  Play,
-  Loader2,
-} from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,18 +30,9 @@ import {
   type ScheduleConfig,
 } from "@/app/actions/schedule";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage, type LanguageSettings } from "@/lib/types";
-import {
-  MODEL_OPTIONS,
-  MODEL_STORAGE_KEY,
-  getStoredModel,
-  getStoredAgentModel,
-  setStoredAgentModel,
-  type AgentKey,
-} from "@/lib/model";
 import { getStoredLanguageSettings } from "@/lib/language";
 import { type ThemePreference, applyTheme, saveTheme, getStoredTheme } from "@/lib/theme";
 import { PageContainer } from "@/components/page-container";
-import { getAgentLastRuns, type AgentLastRuns } from "@/app/actions/agents";
 
 interface VoiceBankEntry {
   id: string;
@@ -708,11 +687,9 @@ const DEFAULT_LANGUAGE_SETTINGS: LanguageSettings = {
 };
 
 function LanguageTab() {
-  const [settings, setSettings] = useState<LanguageSettings>(DEFAULT_LANGUAGE_SETTINGS);
-
-  useEffect(() => {
-    setSettings(getStoredLanguageSettings());
-  }, []);
+  const [settings, setSettings] = useState<LanguageSettings>(() =>
+    typeof window !== "undefined" ? getStoredLanguageSettings() : DEFAULT_LANGUAGE_SETTINGS
+  );
 
   function handleChange(key: keyof LanguageSettings, value: SupportedLanguage) {
     const updated = { ...settings, [key]: value };
@@ -761,40 +738,6 @@ function LanguageTab() {
           </Select>
         </div>
       ))}
-    </div>
-  );
-}
-
-function ApiKeysTab() {
-  const [model, setModel] = useState<string>(MODEL_OPTIONS[0].value);
-
-  useEffect(() => {
-    setModel(getStoredModel());
-  }, []);
-
-  function handleModelChange(value: string) {
-    setModel(value);
-    localStorage.setItem(MODEL_STORAGE_KEY, value);
-    toast.success("Model saved");
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Model</label>
-        <Select value={model} onValueChange={handleModelChange}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MODEL_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
     </div>
   );
 }
@@ -879,11 +822,9 @@ function ThemeCardPreview({ value }: { value: ThemePreference }) {
 }
 
 function AppearanceTab() {
-  const [theme, setTheme] = useState<ThemePreference>("system");
-
-  useEffect(() => {
-    setTheme(getStoredTheme());
-  }, []);
+  const [theme, setTheme] = useState<ThemePreference>(() =>
+    typeof window !== "undefined" ? getStoredTheme() : "system"
+  );
 
   function handleSelect(pref: ThemePreference) {
     setTheme(pref);
@@ -921,331 +862,13 @@ function AppearanceTab() {
   );
 }
 
-function AuthTab() {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-
-  function handleChange() {
-    toast.success("Password changed");
-    setCurrentPassword("");
-    setNewPassword("");
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Current password</label>
-        <Input
-          type="password"
-          value={currentPassword}
-          onChange={(e) => setCurrentPassword(e.target.value)}
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">New password</label>
-        <Input
-          type="password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-        />
-      </div>
-      <Button
-        size="sm"
-        className="w-fit"
-        onClick={handleChange}
-        disabled={!currentPassword || !newPassword}
-      >
-        Change password
-      </Button>
-    </div>
-  );
-}
-
-interface AgentDef {
-  key: keyof AgentLastRuns;
-  label: string;
-  description: string;
-  schedule: string;
-  icon: React.ReactNode;
-  daily: boolean;
-  utcHour: number;
-  utcMinute: number;
-  weekdayIndex?: number; // 0=Sun,1=Mon,...
-  modelKey?: AgentKey;
-  defaultModel?: string;
-}
-
-const AGENT_DEFS: AgentDef[] = [
-  {
-    key: "followersSnapshot",
-    label: "Followers Snapshot",
-    description: "Records current follower count and delta",
-    schedule: "Daily at 6:00 UTC",
-    icon: <TrendingUp className="h-4 w-4" />,
-    daily: true,
-    utcHour: 6,
-    utcMinute: 0,
-  },
-  {
-    key: "trendSnapshot",
-    label: "Trend Snapshot",
-    description: "Captures personalized trending topics",
-    schedule: "Daily at 16:15 UTC",
-    icon: <BarChart3 className="h-4 w-4" />,
-    daily: true,
-    utcHour: 16,
-    utcMinute: 15,
-  },
-  {
-    key: "dailyInsight",
-    label: "Daily Insight",
-    description: "Generates 5 brief AI insights from latest data",
-    schedule: "Daily at 16:30 UTC",
-    icon: <Lightbulb className="h-4 w-4" />,
-    daily: true,
-    utcHour: 16,
-    utcMinute: 30,
-    modelKey: "dailyInsight",
-    defaultModel: "claude-haiku-4-5-20251001",
-  },
-  {
-    key: "xImport",
-    label: "X Import",
-    description: "Imports posts from X API",
-    schedule: "Mondays at 4:00 UTC",
-    icon: <Download className="h-4 w-4" />,
-    daily: false,
-    utcHour: 4,
-    utcMinute: 0,
-    weekdayIndex: 1,
-  },
-  {
-    key: "researcher",
-    label: "Researcher",
-    description: "Searches web for X growth tactics and saves notes",
-    schedule: "Mondays at 4:30 UTC",
-    icon: <Search className="h-4 w-4" />,
-    daily: false,
-    utcHour: 4,
-    utcMinute: 30,
-    weekdayIndex: 1,
-    modelKey: "researcher",
-    defaultModel: "claude-sonnet-4-6",
-  },
-  {
-    key: "strategist",
-    label: "Strategist",
-    description: "Analyses 30-day performance and updates strategy",
-    schedule: "Mondays at 14:00 UTC",
-    icon: <Bot className="h-4 w-4" />,
-    daily: false,
-    utcHour: 14,
-    utcMinute: 0,
-    weekdayIndex: 1,
-    modelKey: "strategist",
-    defaultModel: "claude-sonnet-4-6",
-  },
-];
-
-function getNextRun(def: AgentDef): Date {
-  const now = new Date();
-  const next = new Date(now);
-  next.setUTCHours(def.utcHour, def.utcMinute, 0, 0);
-
-  if (def.daily) {
-    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
-  } else {
-    const targetDay = def.weekdayIndex ?? 1;
-    const currentDay = now.getUTCDay();
-    let daysUntil = (targetDay - currentDay + 7) % 7;
-    if (daysUntil === 0 && next <= now) daysUntil = 7;
-    next.setUTCDate(now.getUTCDate() + daysUntil);
-  }
-  return next;
-}
-
-function formatRelative(date: Date): string {
-  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
-function formatUntil(date: Date): string {
-  const diff = Math.floor((date.getTime() - Date.now()) / 1000);
-  if (diff < 60) return "< 1m";
-  if (diff < 3600) return `in ${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `in ${Math.floor(diff / 3600)}h`;
-  return `in ${Math.floor(diff / 86400)}d`;
-}
-
-function AgentsTab() {
-  const [lastRuns, setLastRuns] = useState<AgentLastRuns | null>(null);
-  const [now, setNow] = useState(() => new Date());
-  const [running, setRunning] = useState<string | null>(null);
-  const [agentModels, setAgentModels] = useState<Partial<Record<AgentKey, string>>>({});
-
-  useEffect(() => {
-    getAgentLastRuns()
-      .then(setLastRuns)
-      .catch(() => setLastRuns(null));
-    const timer = setInterval(() => setNow(new Date()), 30_000);
-
-    const modelEntries = AGENT_DEFS.filter((d) => d.modelKey).map((d) => [
-      d.modelKey!,
-      getStoredAgentModel(d.modelKey!),
-    ]);
-    setAgentModels(Object.fromEntries(modelEntries));
-
-    return () => clearInterval(timer);
-  }, []);
-
-  function handleModelChange(modelKey: AgentKey, value: string) {
-    setStoredAgentModel(modelKey, value);
-    setAgentModels((prev) => ({ ...prev, [modelKey]: value }));
-    toast.success("Model saved");
-  }
-
-  const CRON_PATHS: Record<string, string> = {
-    followersSnapshot: "/api/cron/followers-snapshot",
-    trendSnapshot: "/api/cron/trend-snapshot",
-    dailyInsight: "/api/cron/daily-insight",
-    xImport: "/api/cron/x-import",
-    researcher: "/api/cron/researcher",
-    strategist: "/api/cron/strategist",
-  };
-
-  async function handleRun(key: string, label: string) {
-    if (running) return;
-    setRunning(key);
-    try {
-      const cronPath = CRON_PATHS[key];
-      if (!cronPath) throw new Error("Unknown agent");
-      const res = await fetch(cronPath);
-      const data = await res.json();
-      if (data.ok) {
-        toast.success(`${label} completed`);
-        getAgentLastRuns()
-          .then(setLastRuns)
-          .catch(() => {});
-      } else {
-        toast.error(`${label} failed: ${data.error ?? `HTTP ${res.status}`}`);
-      }
-    } catch (err) {
-      toast.error(`${label} failed: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setRunning(null);
-    }
-  }
-
-  const daily = AGENT_DEFS.filter((d) => d.daily);
-  const weekly = AGENT_DEFS.filter((d) => !d.daily);
-
-  function renderGroup(title: string, defs: AgentDef[]) {
-    return (
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </p>
-        <div className="rounded-xl border border-border overflow-hidden">
-          {defs.map((def, i) => {
-            const lastRun = lastRuns ? lastRuns[def.key] : undefined;
-            const next = getNextRun(def);
-            return (
-              <div
-                key={def.key}
-                className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-border" : ""}`}
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  {def.icon}
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <p className="text-sm font-medium leading-none">{def.label}</p>
-                  <p className="text-xs text-muted-foreground truncate">{def.description}</p>
-                  {def.modelKey && (
-                    <Select
-                      value={agentModels[def.modelKey] ?? def.defaultModel}
-                      onValueChange={(v) => handleModelChange(def.modelKey!, v)}
-                    >
-                      <SelectTrigger className="mt-1.5 h-6 w-fit gap-1.5 border-border/50 px-2 text-xs text-muted-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MODEL_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                            {opt.shortLabel}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className="text-xs font-medium text-foreground/70">{def.schedule}</span>
-                    <div className="flex items-center gap-2">
-                      {lastRun ? (
-                        <span className="text-xs text-muted-foreground">
-                          {formatRelative(new Date(lastRun))}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/50">never</span>
-                      )}
-                      <span className="text-xs text-blue-500">{formatUntil(next)}</span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-11 w-11 shrink-0"
-                    disabled={running !== null}
-                    onClick={() => handleRun(def.key, def.label)}
-                    aria-label={`Run ${def.label}`}
-                  >
-                    {running === def.key ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  // suppress unused var warning — now is read by getNextRun indirectly via closure refresh
-  void now;
-
-  return (
-    <div className="flex flex-col gap-5">
-      {renderGroup("Daily", daily)}
-      {renderGroup("Weekly", weekly)}
-    </div>
-  );
-}
-
-type SettingsSection =
-  | "voice-bank"
-  | "strategy"
-  | "agents"
-  | "api-keys"
-  | "language"
-  | "appearance"
-  | "auth";
+type SettingsSection = "voice-bank" | "strategy" | "language" | "appearance";
 
 const SETTINGS_NAV: { value: SettingsSection; label: string }[] = [
   { value: "strategy", label: "Strategy" },
   { value: "voice-bank", label: "Voice Bank" },
-  { value: "agents", label: "Agents" },
-  { value: "api-keys", label: "API" },
   { value: "language", label: "Language" },
   { value: "appearance", label: "Appearance" },
-  { value: "auth", label: "Auth" },
 ];
 
 export function SettingsView() {
@@ -1296,11 +919,8 @@ export function SettingsView() {
           <div className="max-w-2xl pb-8">
             {active === "voice-bank" && <VoiceBankTab />}
             {active === "strategy" && <StrategyConfigTab />}
-            {active === "agents" && <AgentsTab />}
-            {active === "api-keys" && <ApiKeysTab />}
             {active === "language" && <LanguageTab />}
             {active === "appearance" && <AppearanceTab />}
-            {active === "auth" && <AuthTab />}
           </div>
         </div>
       </div>
