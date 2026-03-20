@@ -44,4 +44,5 @@ Save the post as a new file in `~/.claude/dev-posts/`:
 - Filename: `YYYY-MM-DD-<slug>.md` where slug is 2-4 words from the topic, kebab-case
 - File starts directly with `# Title` (no date header needed — it's in the filename)
 - Use the Write tool — do NOT read any existing files first
-- Do not ask for confirmation — just save silently after outputting the post.
+- Do not ask for confirmation — just save silently.
+- Do NOT output the post text to the chat. Only save to file and confirm with the filename.
