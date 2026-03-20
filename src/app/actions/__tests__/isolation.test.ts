@@ -146,7 +146,7 @@ describe("userId isolation — schedule", () => {
   it("getScheduledSlots filters by userId", async () => {
     const { getScheduledSlots } = await import("../schedule");
 
-    await getScheduledSlots(new Date("2026-01-06"), new Date("2026-01-12"));
+    await getScheduledSlots("2026-01-06");
 
     expect(prismaMock.scheduledSlot.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
