@@ -121,14 +121,13 @@ export function TextSelectionPopup() {
     hidePopup();
 
     try {
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const result = await addToQueue(selectedText, conversationId, slotType, timezone);
+      const result = await addToQueue(selectedText, conversationId, slotType);
       if (result) {
         const date = result.date.toLocaleDateString("en-US", {
           weekday: "short",
           month: "short",
           day: "numeric",
-          timeZone: timezone,
+          timeZone: "UTC",
         });
         toast.success(`Copied + scheduled for ${date}, ${result.timeSlot}`);
         window.dispatchEvent(new Event("slots-updated"));

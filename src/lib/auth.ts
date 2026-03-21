@@ -8,6 +8,37 @@ const ADMIN_CLERK_IDS = (process.env.ADMIN_CLERK_IDS ?? "")
   .filter(Boolean);
 
 /**
+ * Returns the internal DB user (id + timezone) for the currently authenticated Clerk user.
+ * Use when server actions need the user's timezone without a client parameter.
+ */
+export async function requireUser(): Promise<{ id: string; timezone: string }> {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) throw new Error("Unauthorized");
+
+  const existing = await prisma.user.findUnique({
+    where: { clerkId },
+    select: { id: true, timezone: true },
+  });
+  if (existing) return existing;
+
+  // Auto-create user if webhook hasn't synced yet
+  const clerkUser = await currentUser();
+  if (!clerkUser) throw new Error("Unauthorized");
+
+  return prisma.user.upsert({
+    where: { clerkId },
+    update: {},
+    create: {
+      clerkId,
+      email: clerkUser?.emailAddresses[0]?.emailAddress ?? "",
+      name: [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(" ") || null,
+      imageUrl: clerkUser?.imageUrl ?? null,
+    },
+    select: { id: true, timezone: true },
+  });
+}
+
+/**
  * Returns the internal DB userId for the currently authenticated Clerk user.
  * Auto-creates DB record on first encounter (fallback if webhook hasn't fired yet).
  * Throws if not authenticated.
