@@ -7,58 +7,50 @@ import { PageContainer } from "@/components/page-container";
 import { SlotItem, groupSlotsByDate } from "@/components/left-sidebar";
 import {
   getScheduledSlots,
-  ensureSlotsForWeek,
   toggleSlotPosted,
   deleteSlot,
   unscheduleSlot,
 } from "@/app/actions/schedule";
 import type { ScheduledSlot, SlotStatus } from "@/lib/types";
 
-function getLocalDateStr() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-
 export function ScheduleView() {
   const [slots, setSlots] = useState<ScheduledSlot[]>([]);
 
   useEffect(() => {
-    const localDateStr = getLocalDateStr();
-    const lastRun = localStorage.getItem("xreba_slots_generated");
-    if (lastRun !== localDateStr) {
-      ensureSlotsForWeek(localDateStr)
-        .then(() => {
-          localStorage.setItem("xreba_slots_generated", localDateStr);
-          return getScheduledSlots(localDateStr);
-        })
-        .then(setSlots)
-        .catch(() => setSlots([]));
-    } else {
-      getScheduledSlots(localDateStr)
-        .then(setSlots)
-        .catch(() => setSlots([]));
-    }
+    getScheduledSlots()
+      .then(setSlots)
+      .catch(() => setSlots([]));
   }, []);
 
   useEffect(() => {
     const handler = () =>
-      getScheduledSlots(getLocalDateStr())
+      getScheduledSlots()
         .then(setSlots)
         .catch(() => {});
     window.addEventListener("slots-updated", handler);
     return () => window.removeEventListener("slots-updated", handler);
   }, []);
 
+  function refreshSlots() {
+    getScheduledSlots()
+      .then(setSlots)
+      .catch(() => {});
+  }
+
   async function handleTogglePosted(id: string) {
     try {
       const result = await toggleSlotPosted(id);
-      setSlots((prev) =>
-        prev.map((s) => {
-          if (s.id !== id) return s;
-          const newStatus = result.status.toLowerCase() as SlotStatus;
-          return { ...s, status: newStatus, postedAt: result.postedAt };
-        })
-      );
+      if (result.status === "EMPTY") {
+        refreshSlots();
+      } else {
+        setSlots((prev) =>
+          prev.map((s) => {
+            if (s.id !== id) return s;
+            const newStatus = result.status.toLowerCase() as SlotStatus;
+            return { ...s, status: newStatus, postedAt: result.postedAt };
+          })
+        );
+      }
     } catch {
       toast.error("Failed to update slot status");
     }
@@ -77,13 +69,7 @@ export function ScheduleView() {
   async function handleUnschedule(id: string) {
     try {
       await unscheduleSlot(id);
-      setSlots((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? { ...s, status: "empty" as const, draftId: undefined, draftTitle: undefined }
-            : s
-        )
-      );
+      refreshSlots();
       toast.success("Draft returned to drafts");
     } catch {
       toast.error("Failed to unschedule");

@@ -45,7 +45,6 @@ import {
 } from "@/app/actions/conversations";
 import {
   getScheduledSlots,
-  ensureSlotsForWeek,
   toggleSlotPosted,
   deleteSlot,
   unscheduleSlot,
@@ -435,27 +434,14 @@ export function LeftSidebar({
   }, [pathname]);
 
   useEffect(() => {
-    const now = new Date();
-    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const lastRun = localStorage.getItem("xreba_slots_generated");
-    if (lastRun !== localDateStr) {
-      ensureSlotsForWeek(localDateStr)
-        .then(() => {
-          localStorage.setItem("xreba_slots_generated", localDateStr);
-          return getScheduledSlots(localDateStr);
-        })
-        .then(setSlots)
-        .catch(() => setSlots([]));
-    } else {
-      getScheduledSlots(localDateStr)
-        .then(setSlots)
-        .catch(() => setSlots([]));
-    }
+    getScheduledSlots()
+      .then(setSlots)
+      .catch(() => setSlots([]));
   }, []);
 
   useEffect(() => {
     const handler = () =>
-      getScheduledSlots(getLocalDateStr())
+      getScheduledSlots()
         .then(setSlots)
         .catch(() => {});
     window.addEventListener("slots-updated", handler);
@@ -474,13 +460,8 @@ export function LeftSidebar({
     return () => window.removeEventListener("switch-to-scheduled", handler);
   }, []);
 
-  function getLocalDateStr() {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  }
-
   function refreshSlots() {
-    getScheduledSlots(getLocalDateStr())
+    getScheduledSlots()
       .then(setSlots)
       .catch(() => {});
   }
@@ -488,13 +469,18 @@ export function LeftSidebar({
   async function handleToggleSlotPosted(id: string) {
     try {
       const result = await toggleSlotPosted(id);
-      setSlots((prev) =>
-        prev.map((s) => {
-          if (s.id !== id) return s;
-          const newStatus = result.status.toLowerCase() as SlotStatus;
-          return { ...s, status: newStatus, postedAt: result.postedAt };
-        })
-      );
+      if (result.status === "EMPTY") {
+        // Row was deleted — re-fetch so virtual slot reappears with correct ID
+        refreshSlots();
+      } else {
+        setSlots((prev) =>
+          prev.map((s) => {
+            if (s.id !== id) return s;
+            const newStatus = result.status.toLowerCase() as SlotStatus;
+            return { ...s, status: newStatus, postedAt: result.postedAt };
+          })
+        );
+      }
     } catch {
       toast.error("Failed to update slot status");
     }
@@ -513,13 +499,7 @@ export function LeftSidebar({
   async function handleUnschedule(id: string) {
     try {
       await unscheduleSlot(id);
-      setSlots((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? { ...s, status: "empty" as const, draftId: undefined, draftTitle: undefined }
-            : s
-        )
-      );
+      refreshSlots(); // row deleted — re-fetch so virtual EMPTY reappears
       toast.success("Draft returned to drafts");
     } catch {
       toast.error("Failed to unschedule");
