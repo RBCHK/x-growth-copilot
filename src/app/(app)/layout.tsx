@@ -3,6 +3,7 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { AppHeader } from "@/components/app-header";
 import { AppFooter } from "@/components/app-footer";
 import { isAdmin } from "@/lib/auth";
+import { TimezoneSync } from "@/components/timezone-sync";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const showAdmin = await isAdmin();
@@ -21,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <MobileBottomNav />
       <AppFooter />
+      <TimezoneSync />
     </div>
   );
 }

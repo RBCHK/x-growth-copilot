@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserId, requireUser } from "@/lib/auth";
 import type { GoalChartData, GoalTrackingData, SlotStatus, SlotType } from "@/lib/types";
 import { SlotType as PrismaSlotType } from "@/generated/prisma";
 import { calendarDateStr } from "@/lib/date-utils";
@@ -405,11 +405,9 @@ function isSlotFuture(slotDate: Date, timeSlot: string, timezone: string): boole
 export async function addToQueue(
   content: string,
   conversationId?: string,
-  slotType: PrismaSlotType = "POST",
-  /** User's IANA timezone, e.g. "America/Los_Angeles" — passed from client via Intl API */
-  timezone: string = "UTC"
+  slotType: PrismaSlotType = "POST"
 ) {
-  const userId = await requireUserId();
+  const { id: userId, timezone } = await requireUser();
   // "Today" in the user's timezone → UTC midnight of that calendar day (how dates are stored)
   const now = new Date();
   const localDateStr = now.toLocaleDateString("en-CA", { timeZone: timezone }); // "YYYY-MM-DD"
