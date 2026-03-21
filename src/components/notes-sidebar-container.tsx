@@ -18,6 +18,7 @@ export function NotesSidebarContainer() {
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_BREAKPOINT);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser API access requires effect for SSR safety
     setIsMobile(mq.matches);
     const handler = () => setIsMobile(mq.matches);
     mq.addEventListener("change", handler);

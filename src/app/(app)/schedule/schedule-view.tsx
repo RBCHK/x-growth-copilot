@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "@/components/page-container";
-import { SlotItem, groupSlotsByDate, formatSlotDate } from "@/components/left-sidebar";
+import { SlotItem, groupSlotsByDate } from "@/components/left-sidebar";
 import {
   getScheduledSlots,
   ensureSlotsForWeek,

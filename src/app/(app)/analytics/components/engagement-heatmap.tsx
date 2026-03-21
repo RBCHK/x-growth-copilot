@@ -31,6 +31,7 @@ export function EngagementHeatmap() {
 
   useEffect(() => {
     if (!dateRange) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sets loading state before async fetch
     setIsLoading(true);
     getEngagementHeatmap(dateRange.from, dateRange.to)
       .then(setCells)
