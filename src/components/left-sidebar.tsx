@@ -45,7 +45,6 @@ import {
 } from "@/app/actions/conversations";
 import {
   getScheduledSlots,
-  ensureSlotsForWeek,
   toggleSlotPosted,
   deleteSlot,
   unscheduleSlot,
@@ -415,7 +414,12 @@ export function LeftSidebar({
   const [slots, setSlots] = useState<ScheduledSlot[]>([]);
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"drafts" | "scheduled">(defaultTab ?? "scheduled");
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const fetchSeqRef = useRef(0);
+  const loadedDaysRef = useRef(14);
+  const isLoadingMoreRef = useRef(false);
+  const scheduleScrollAreaRef = useRef<HTMLDivElement>(null);
+  const scheduleSentinelRef = useRef<HTMLDivElement>(null);
 
   const activeDraftId = pathname.startsWith("/c/") ? pathname.split("/")[2] : null;
 
@@ -435,27 +439,14 @@ export function LeftSidebar({
   }, [pathname]);
 
   useEffect(() => {
-    const now = new Date();
-    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const lastRun = localStorage.getItem("xreba_slots_generated");
-    if (lastRun !== localDateStr) {
-      ensureSlotsForWeek(localDateStr)
-        .then(() => {
-          localStorage.setItem("xreba_slots_generated", localDateStr);
-          return getScheduledSlots(localDateStr);
-        })
-        .then(setSlots)
-        .catch(() => setSlots([]));
-    } else {
-      getScheduledSlots(localDateStr)
-        .then(setSlots)
-        .catch(() => setSlots([]));
-    }
+    getScheduledSlots({ days: loadedDaysRef.current })
+      .then(setSlots)
+      .catch(() => setSlots([]));
   }, []);
 
   useEffect(() => {
     const handler = () =>
-      getScheduledSlots(getLocalDateStr())
+      getScheduledSlots({ days: loadedDaysRef.current })
         .then(setSlots)
         .catch(() => {});
     window.addEventListener("slots-updated", handler);
@@ -474,27 +465,60 @@ export function LeftSidebar({
     return () => window.removeEventListener("switch-to-scheduled", handler);
   }, []);
 
-  function getLocalDateStr() {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  }
-
   function refreshSlots() {
-    getScheduledSlots(getLocalDateStr())
+    getScheduledSlots({ days: loadedDaysRef.current })
       .then(setSlots)
       .catch(() => {});
   }
 
+  async function loadMore() {
+    if (isLoadingMoreRef.current) return;
+    isLoadingMoreRef.current = true;
+    setIsLoadingMore(true);
+    const newDays = loadedDaysRef.current + 14;
+    try {
+      const data = await getScheduledSlots({ days: newDays });
+      setSlots(data);
+      loadedDaysRef.current = newDays;
+    } catch {
+      // ignore
+    } finally {
+      isLoadingMoreRef.current = false;
+      setIsLoadingMore(false);
+    }
+  }
+
+  useEffect(() => {
+    const container = scheduleScrollAreaRef.current;
+    const sentinel = scheduleSentinelRef.current;
+    if (!container || !sentinel) return;
+    const viewport = container.querySelector("[data-radix-scroll-area-viewport]");
+    if (!viewport) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { root: viewport, threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
   async function handleToggleSlotPosted(id: string) {
     try {
       const result = await toggleSlotPosted(id);
-      setSlots((prev) =>
-        prev.map((s) => {
-          if (s.id !== id) return s;
-          const newStatus = result.status.toLowerCase() as SlotStatus;
-          return { ...s, status: newStatus, postedAt: result.postedAt };
-        })
-      );
+      if (result.status === "EMPTY") {
+        // Row was deleted — re-fetch so virtual slot reappears with correct ID
+        refreshSlots();
+      } else {
+        setSlots((prev) =>
+          prev.map((s) => {
+            if (s.id !== id) return s;
+            const newStatus = result.status.toLowerCase() as SlotStatus;
+            return { ...s, status: newStatus, postedAt: result.postedAt };
+          })
+        );
+      }
     } catch {
       toast.error("Failed to update slot status");
     }
@@ -513,13 +537,7 @@ export function LeftSidebar({
   async function handleUnschedule(id: string) {
     try {
       await unscheduleSlot(id);
-      setSlots((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? { ...s, status: "empty" as const, draftId: undefined, draftTitle: undefined }
-            : s
-        )
-      );
+      refreshSlots(); // row deleted — re-fetch so virtual EMPTY reappears
       toast.success("Draft returned to drafts");
     } catch {
       toast.error("Failed to unschedule");
@@ -744,26 +762,32 @@ export function LeftSidebar({
         </TabsContent>
 
         <TabsContent value="scheduled" className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full pl-2 pt-3 pr-2">
-            <div className="flex flex-col gap-4">
-              {groupedSlots.map(([dateLabel, slotList]) => (
-                <div key={dateLabel} className="flex flex-col gap-2">
-                  <span className="px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {dateLabel}
-                  </span>
-                  {slotList.map((slot) => (
-                    <SlotItem
-                      key={slot.id}
-                      slot={slot}
-                      onTogglePosted={handleToggleSlotPosted}
-                      onDelete={handleSlotDelete}
-                      onUnschedule={handleUnschedule}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+          <div ref={scheduleScrollAreaRef} className="h-full">
+            <ScrollArea className="h-full pl-2 pt-3 pr-2">
+              <div className="flex flex-col gap-4">
+                {groupedSlots.map(([dateLabel, slotList]) => (
+                  <div key={dateLabel} className="flex flex-col gap-2">
+                    <span className="px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {dateLabel}
+                    </span>
+                    {slotList.map((slot) => (
+                      <SlotItem
+                        key={slot.id}
+                        slot={slot}
+                        onTogglePosted={handleToggleSlotPosted}
+                        onDelete={handleSlotDelete}
+                        onUnschedule={handleUnschedule}
+                      />
+                    ))}
+                  </div>
+                ))}
+                <div ref={scheduleSentinelRef} className="h-1" />
+                {isLoadingMore && (
+                  <p className="pb-3 text-center text-xs text-muted-foreground">Loading…</p>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </TabsContent>
       </Tabs>
 
