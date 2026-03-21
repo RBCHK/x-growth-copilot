@@ -1,6 +1,7 @@
 {
   "buildCommand": "prisma migrate deploy && next build",
   "crons": [
+    { "path": "/api/cron/ensure-slots", "schedule": "0 2 * * *" },
     { "path": "/api/cron/followers-snapshot", "schedule": "0 6 * * *" },
     { "path": "/api/cron/trend-snapshot", "schedule": "0 8 * * *" },
     { "path": "/api/cron/trend-snapshot", "schedule": "0 12 * * *" },
