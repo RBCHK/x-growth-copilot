@@ -13,7 +13,7 @@ interface Props {
 export default async function ConversationPage({ params }: Props) {
   const { id } = await params;
 
-  let data = await getConversation(id);
+  const data = await getConversation(id);
   if (!data) {
     redirect("/");
   }

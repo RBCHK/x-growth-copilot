@@ -19,6 +19,7 @@ export function useXProfile() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage access requires effect for SSR safety
       if (raw) setProfile({ ...DEFAULT_PROFILE, ...JSON.parse(raw) });
     } catch {
       // ignore

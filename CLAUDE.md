@@ -98,8 +98,9 @@ IMPORTANT: Never commit directly to `main`. Branch protection is enabled.
 ## Workflow Rules
 
 IMPORTANT: Before executing any task, check `.claude/skills/` for a relevant skill and use it.
+IMPORTANT: Before implementing — read relevant category in `.claude/skills/gotchas/` (react, nextjs, eslint, prisma, ai-sdk). After solving a problem — immediately write/update the gotcha entry.
 IMPORTANT: If a task is multi-step and repeatable — create a skill for it using `/create-skill`.
 IMPORTANT: After completing a task that touched 3+ files with the same pattern — suggest creating a skill (propose, don't auto-create).
 IMPORTANT: Use Plan Mode (Shift+Tab) for any change touching 3+ files.
 IMPORTANT: Start a fresh session (`/clear`) for each new task.
-IMPORTANT: After implementing, verify with `npx tsc --noEmit` (also runs automatically via hook after every file edit).
+IMPORTANT: After implementing, verify with **both** `npx tsc --noEmit` AND `npm run lint` before committing. Running only tsc is not enough — ESLint catches a different class of errors (unused vars, setState in effects, component-in-render, etc.) that accumulate silently across PRs.

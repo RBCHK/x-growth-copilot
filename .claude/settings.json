@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"Перед поиском — проверь .claude/skills/gotchas/ (react/, nextjs/, eslint/, prisma/, ai-sdk/). Если найдёшь релевантный кейс — применяй сразу, не иди в интернет.\"}}'"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -7,6 +18,15 @@
           {
             "type": "command",
             "command": "cd /Users/rbchk/IT/xREBA && npx tsc --noEmit 2>&1 | head -20"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); cmd=$(echo \"$input\" | jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -qE 'run lint|tsc --noEmit'; then output=$(echo \"$input\" | jq -r '.tool_response // \"\" | if type == \"string\" then . else tostring end'); if ! echo \"$output\" | grep -qi 'error'; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"Проверка прошла чисто. Если решил новую проблему — запиши в .claude/skills/gotchas/\"}}'; fi; fi"
           }
         ]
       }

@@ -47,7 +47,7 @@ export function TextSelectionPopup() {
   }, []);
 
   useEffect(() => {
-    function handleMouseUp(_e: MouseEvent) {
+    function handleMouseUp() {
       // Small delay to let the browser finalize the selection
       setTimeout(() => {
         const selection = window.getSelection();

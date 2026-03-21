@@ -37,14 +37,12 @@ export function DraftsView() {
 
   useEffect(() => {
     fetchAndSetDrafts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   useEffect(() => {
     const handler = fetchAndSetDrafts;
     window.addEventListener("drafts-updated", handler);
     return () => window.removeEventListener("drafts-updated", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleNewDraft() {

@@ -21,20 +21,16 @@ function getHourIndex(count: number): number {
 export function DailyInsightCard({ insights, date }: DailyInsightCardProps) {
   const hasInsights = insights && insights.length > 0;
 
-  const [index, setIndex] = useState(() => (hasInsights ? getHourIndex(insights.length) : 0));
+  // Tick every minute to re-derive the index from the current time.
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     if (!hasInsights) return;
-
-    setIndex(getHourIndex(insights.length));
-
-    const interval = setInterval(() => {
-      setIndex(getHourIndex(insights.length));
-    }, 60_000);
-
+    const interval = setInterval(() => setTick((n) => n + 1), 60_000);
     return () => clearInterval(interval);
-  }, [hasInsights, insights?.length]);
+  }, [hasInsights]);
 
+  const index = hasInsights ? getHourIndex(insights.length) : 0;
   const displayText = hasInsights ? insights[index] : FALLBACK_TEXT;
 
   return (
