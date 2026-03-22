@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/auth";
-import type { ContentType, DraftStatus } from "@/lib/types";
+import type { ContentType, DraftStatus, ComposerContent, Platform } from "@/lib/types";
 import { fetchTweetFromText, extractTweetUrl } from "@/lib/parse-tweet";
 import { fetchTweetById } from "@/lib/x-api";
 import { getXApiTokenForUserInternal } from "@/app/actions/x-token";
@@ -70,6 +70,8 @@ export async function getConversation(id: string) {
     status: statusFromPrisma(c.status),
     originalPostText: c.originalPostText,
     originalPostUrl: c.originalPostUrl,
+    composerContent: (c.composerContent as unknown as ComposerContent) ?? null,
+    composerPlatform: (c.composerPlatform as Platform) ?? null,
     updatedAt: c.updatedAt,
     messages: c.messages.map((m) => ({
       id: m.id,
@@ -242,6 +244,21 @@ export async function fetchTweetFullTextAction(text: string): Promise<string | n
   // Fallback: oEmbed
   const result = await fetchTweetFromText(text);
   return result ? result.text : null;
+}
+
+export async function updateComposerContent(
+  conversationId: string,
+  composerContent: ComposerContent,
+  composerPlatform: Platform
+) {
+  const userId = await requireUserId();
+  await prisma.conversation.updateMany({
+    where: { id: conversationId, userId },
+    data: {
+      composerContent: JSON.parse(JSON.stringify(composerContent)),
+      composerPlatform,
+    },
+  });
 }
 
 export async function resolveTitleFromInput(text: string): Promise<string> {

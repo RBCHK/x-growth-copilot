@@ -13,7 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage, type TextUIPart } from "ai";
-import type { ContentType, Message, Note } from "@/lib/types";
+import type { ContentType, Message, Note, ComposerContent, Platform } from "@/lib/types";
 import {
   addNote as addNoteAction,
   removeNote as removeNoteAction,
@@ -24,6 +24,7 @@ import {
   addMessage,
   fetchTweetFullTextAction,
   updateConversation,
+  updateComposerContent,
   resolveConversationTitle,
 } from "@/app/actions/conversations";
 import { extractTweetUrl } from "@/lib/parse-tweet";
@@ -35,6 +36,9 @@ interface ConversationContextValue {
   messages: Message[];
   notes: Note[];
   contentType: ContentType;
+  composerContent: ComposerContent;
+  composerPlatform: Platform;
+  composerSaveStatus: "idle" | "saving" | "saved";
   input: string;
   isLoading: boolean;
   isFetchingTweet: boolean;
@@ -43,11 +47,14 @@ interface ConversationContextValue {
   setInput: (value: string) => void;
   sendMessage: () => void;
   changeContentType: (type: ContentType) => void;
+  updateComposer: (content: ComposerContent, platform: Platform) => void;
   addNote: (content: string) => void;
   removeNote: (id: string) => void;
   updateNote: (id: string, content: string) => void;
   clearNotes: () => void;
 }
+
+const DEFAULT_COMPOSER: ComposerContent = { linked: true, shared: "" };
 
 const ConversationContext = createContext<ConversationContextValue | null>(null);
 
@@ -86,6 +93,8 @@ export function ConversationProvider({
     messages: Message[];
     notes: Note[];
     contentType: ContentType;
+    composerContent?: ComposerContent | null;
+    composerPlatform?: Platform | null;
     title?: string;
     originalPostUrl?: string;
   };
@@ -96,6 +105,15 @@ export function ConversationProvider({
   const [input, setInput] = useState("");
   const [isFetchingTweet, setIsFetchingTweet] = useState(false);
   const router = useRouter();
+
+  const [composerContent, setComposerContent] = useState<ComposerContent>(
+    initialData?.composerContent ?? DEFAULT_COMPOSER
+  );
+  const [composerPlatform, setComposerPlatform] = useState<Platform>(
+    initialData?.composerPlatform ?? "X"
+  );
+  const [composerSaveStatus, setComposerSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const composerSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs so the transport body closure always reads latest values
   const notesRef = useRef(notes);
@@ -181,6 +199,9 @@ export function ConversationProvider({
     }));
     setNotes(nts);
     setContentType(initialData?.contentType ?? "Reply");
+    setComposerContent(initialData?.composerContent ?? DEFAULT_COMPOSER);
+    setComposerPlatform(initialData?.composerPlatform ?? "X");
+    setComposerSaveStatus("idle");
   }, [conversationId, initialData]);
 
   // Map AI SDK UIMessage[] to our Message type.
@@ -300,6 +321,21 @@ export function ConversationProvider({
     router.refresh();
   }, [conversationId, router]);
 
+  const updateComposer = useCallback(
+    (content: ComposerContent, platform: Platform) => {
+      setComposerContent(content);
+      setComposerPlatform(platform);
+      setComposerSaveStatus("saving");
+      if (composerSaveTimerRef.current) clearTimeout(composerSaveTimerRef.current);
+      composerSaveTimerRef.current = setTimeout(async () => {
+        await updateComposerContent(conversationId, content, platform);
+        setComposerSaveStatus("saved");
+        setTimeout(() => setComposerSaveStatus("idle"), 2000);
+      }, 1500);
+    },
+    [conversationId]
+  );
+
   const changeContentType = useCallback(
     (type: ContentType) => {
       setContentType(type);
@@ -315,6 +351,9 @@ export function ConversationProvider({
         messages,
         notes,
         contentType,
+        composerContent,
+        composerPlatform,
+        composerSaveStatus,
         input,
         isLoading,
         isFetchingTweet,
@@ -322,6 +361,7 @@ export function ConversationProvider({
         setInput,
         sendMessage,
         changeContentType,
+        updateComposer,
         addNote,
         removeNote,
         updateNote,

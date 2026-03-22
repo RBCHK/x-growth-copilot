@@ -46,6 +46,25 @@ export interface Note {
   createdAt: Date;
 }
 
+// --- Composer ---
+
+export interface ComposerContent {
+  linked: boolean; // true = all platforms share `shared` text
+  shared: string; // common text (used when linked=true)
+  x?: string; // per-platform text (used when linked=false)
+  linkedin?: string;
+  threads?: string;
+}
+
+export const PLATFORMS = ["X", "LINKEDIN", "THREADS"] as const;
+export type Platform = (typeof PLATFORMS)[number];
+
+export const PLATFORM_CHAR_LIMITS: Record<Platform, number> = {
+  X: 280,
+  LINKEDIN: 3000,
+  THREADS: 500,
+};
+
 export const SUPPORTED_LANGUAGES = [
   { value: "en", label: "English" },
   { value: "ru", label: "Russian" },

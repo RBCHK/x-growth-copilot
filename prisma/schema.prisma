@@ -130,6 +130,8 @@ model Conversation {
   status            ConversationStatus  @default(DRAFT)
   originalPostText  String?
   originalPostUrl   String?
+  composerContent   Json?               // { linked, shared, x?, linkedin?, threads? }
+  composerPlatform  String?             // active tab: "X" | "LINKEDIN" | "THREADS"
   pinned            Boolean             @default(false)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt

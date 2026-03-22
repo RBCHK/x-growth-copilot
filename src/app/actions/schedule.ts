@@ -591,6 +591,35 @@ async function _getGoalTrackingData(userId: string): Promise<GoalTrackingData | 
   };
 }
 
+// ─── Composer: re-schedule helpers ────────────────────────
+
+/**
+ * Check if there's an existing FILLED ScheduledSlot linked to this conversation.
+ * Returns the slot if found, null otherwise.
+ */
+export async function checkExistingSchedule(
+  conversationId: string
+): Promise<{ id: string; date: Date; timeSlot: string; content: string | null } | null> {
+  const userId = await requireUserId();
+  const slot = await prisma.scheduledSlot.findFirst({
+    where: { userId, conversationId, status: "FILLED" },
+    select: { id: true, date: true, timeSlot: true, content: true },
+  });
+  return slot ?? null;
+}
+
+/**
+ * Update the content of an existing ScheduledSlot (for re-scheduling).
+ */
+export async function updateScheduledContent(slotId: string, content: string) {
+  const userId = await requireUserId();
+  await prisma.scheduledSlot.updateMany({
+    where: { id: slotId, userId },
+    data: { content },
+  });
+  revalidatePath("/");
+}
+
 export async function getGoalChartData(): Promise<GoalChartData | null> {
   const userId = await requireUserId();
   const config = await prisma.strategyConfig.findFirst({
