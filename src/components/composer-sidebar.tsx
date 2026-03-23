@@ -4,12 +4,13 @@ import { useCallback } from "react";
 import { ChevronLeft, ChevronRight, Link2, Link2Off, PenSquare, Calendar } from "lucide-react";
 import { useConversation } from "@/contexts/conversation-context";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ComposerContent, ContentType, Platform } from "@/lib/types";
 import { PLATFORMS, PLATFORM_CONFIG } from "@/lib/types";
 import { XPostPreview } from "@/components/x-post-preview";
+import { LinkedInPostPreview } from "@/components/linkedin-post-preview";
+import { ThreadsPostPreview } from "@/components/threads-post-preview";
 import { addToQueue, checkExistingSchedule } from "@/app/actions/schedule";
 import type { SlotType as PrismaSlotType } from "@/generated/prisma";
 
@@ -212,29 +213,31 @@ export function ComposerSidebar({
 
       {/* Editor area */}
       <div className="flex min-h-0 flex-1 px-4 pb-2">
-        {activePlatform === "X" ? (
+        {activePlatform === "X" && (
           <XPostPreview
             text={getCurrentText()}
             onChange={handleTextChange}
             placeholder={CONTENT_TYPE_PLACEHOLDERS[contentType] ?? "Write your content…"}
           />
-        ) : (
-          <Textarea
-            className="h-full min-h-[120px] resize-none border-white/10 bg-white/3 text-sm"
+        )}
+        {activePlatform === "LINKEDIN" && (
+          <LinkedInPostPreview
+            text={getCurrentText()}
+            onChange={handleTextChange}
             placeholder={CONTENT_TYPE_PLACEHOLDERS[contentType] ?? "Write your content…"}
-            value={getCurrentText()}
-            onChange={(e) => handleTextChange(e.target.value)}
+          />
+        )}
+        {activePlatform === "THREADS" && (
+          <ThreadsPostPreview
+            text={getCurrentText()}
+            onChange={handleTextChange}
+            placeholder={CONTENT_TYPE_PLACEHOLDERS[contentType] ?? "Write your content…"}
           />
         )}
       </div>
 
       {/* Footer: save status + schedule */}
-      <div
-        className={cn(
-          "flex items-center justify-between px-4 py-3",
-          activePlatform !== "X" && "border-t border-white/5"
-        )}
-      >
+      <div className="flex items-center justify-between px-4 py-3">
         <span className="text-xs text-muted-foreground">
           {composerSaveStatus === "saving" && "Saving…"}
           {composerSaveStatus === "saved" && "Saved"}

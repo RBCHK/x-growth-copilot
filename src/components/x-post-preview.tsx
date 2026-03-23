@@ -21,28 +21,28 @@ export function XPostPreview({
   avatarUrl,
 }: XPostPreviewProps) {
   return (
-    <div className="flex h-full w-full flex-col rounded-2xl border border-white/10 bg-black p-4">
-      {/* Header: avatar + name + dots */}
-      <div className="flex shrink-0 items-center gap-3">
-        {/* Avatar */}
-        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white/10">
-          {avatarUrl ? (
-            <Image
-              src={avatarUrl}
-              alt=""
-              width={40}
-              height={40}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white/40">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
+    <div className="flex h-full w-full gap-3 rounded-2xl border border-white/10 bg-black p-4">
+      {/* Avatar — fixed top-left */}
+      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white/10">
+        {avatarUrl ? (
+          <Image
+            src={avatarUrl}
+            alt=""
+            width={40}
+            height={40}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white/40">
+            {displayName.charAt(0).toUpperCase()}
+          </div>
+        )}
+      </div>
 
-        {/* Name row */}
-        <div className="flex min-w-0 flex-1 items-center gap-1">
+      {/* Right column: name, text, engagement */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* Name row + dots */}
+        <div className="flex shrink-0 items-center gap-1">
           <span className="truncate text-[15px] font-bold text-white">{displayName}</span>
           <svg
             viewBox="0 0 22 22"
@@ -57,66 +57,65 @@ export function XPostPreview({
           <span className="truncate text-[15px] text-[#71767b]">{handle}</span>
           <span className="text-[15px] text-[#71767b]">·</span>
           <span className="shrink-0 text-[15px] text-[#71767b]">now</span>
-        </div>
-
-        {/* More menu (dots) */}
-        <div className="shrink-0 text-[#71767b]">
-          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor">
-            <circle cx="5" cy="12" r="2" />
-            <circle cx="12" cy="12" r="2" />
-            <circle cx="19" cy="12" r="2" />
-          </svg>
-        </div>
-      </div>
-
-      {/* Editable post text — indented to align with name, not avatar */}
-      <div className="ml-[52px] flex min-h-0 flex-1">
-        <textarea
-          className="w-full resize-none border-none bg-transparent p-0 pt-1 text-[15px] leading-[20px] text-white outline-none placeholder:text-[#71767b] focus:ring-0"
-          placeholder={placeholder}
-          value={text}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-
-      {/* Engagement bar */}
-      <div className="ml-[52px] flex shrink-0 items-center justify-between max-w-[425px] pt-3">
-        <div className="flex items-center gap-1.5 text-[#71767b]">
-          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
-            <MessageCircle className="h-[18px] w-[18px]" />
-          </div>
-          <span className="text-[13px]">0</span>
-        </div>
-
-        <div className="flex items-center gap-1.5 text-[#71767b]">
-          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
-            <Repeat2 className="h-[18px] w-[18px]" />
+          <div className="flex-1" />
+          <div className="shrink-0 text-[#71767b]">
+            <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor">
+              <circle cx="5" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="19" cy="12" r="2" />
+            </svg>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[#71767b]">
-          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
-            <Heart className="h-[18px] w-[18px]" />
-          </div>
-          <span className="text-[13px]">0</span>
+        {/* Editable post text */}
+        <div className="flex min-h-0 flex-1">
+          <textarea
+            className="w-full resize-none border-none bg-transparent p-0 pt-1 text-[15px] leading-[20px] text-white outline-none placeholder:text-[#71767b] focus:ring-0"
+            placeholder={placeholder}
+            value={text}
+            onChange={(e) => onChange(e.target.value)}
+          />
         </div>
 
-        <div className="flex items-center gap-1.5 text-[#71767b]">
-          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
-            <BarChart3 className="h-[18px] w-[18px]" />
-          </div>
-          <span className="text-[13px]">0</span>
-        </div>
-
-        <div className="flex items-center gap-0">
-          <div className="flex items-center text-[#71767b]">
+        {/* Engagement bar */}
+        <div className="flex shrink-0 items-center justify-between max-w-[425px] pt-3">
+          <div className="flex items-center gap-1.5 text-[#71767b]">
             <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
-              <Bookmark className="h-[18px] w-[18px]" />
+              <MessageCircle className="h-[18px] w-[18px]" />
+            </div>
+            <span className="text-[13px]">0</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[#71767b]">
+            <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
+              <Repeat2 className="h-[18px] w-[18px]" />
             </div>
           </div>
-          <div className="flex items-center text-[#71767b]">
+
+          <div className="flex items-center gap-1.5 text-[#71767b]">
             <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
-              <Share className="h-[18px] w-[18px]" />
+              <Heart className="h-[18px] w-[18px]" />
+            </div>
+            <span className="text-[13px]">0</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[#71767b]">
+            <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
+              <BarChart3 className="h-[18px] w-[18px]" />
+            </div>
+            <span className="text-[13px]">0</span>
+          </div>
+
+          <div className="flex items-center gap-0">
+            <div className="flex items-center text-[#71767b]">
+              <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
+                <Bookmark className="h-[18px] w-[18px]" />
+              </div>
+            </div>
+            <div className="flex items-center text-[#71767b]">
+              <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full">
+                <Share className="h-[18px] w-[18px]" />
+              </div>
             </div>
           </div>
         </div>
