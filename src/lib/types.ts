@@ -42,6 +42,7 @@ export interface Message {
 
 export interface Note {
   id: string;
+  messageId: string;
   content: string;
   createdAt: Date;
 }

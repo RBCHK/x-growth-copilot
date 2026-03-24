@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { StickyNote, FilePlus, CalendarPlus } from "lucide-react";
+import { StickyNote, FilePlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useRouter } from "next/navigation";
 import { useConversation } from "@/contexts/conversation-context";
-import { addToQueue, hasEmptySlots } from "@/app/actions/schedule";
 import { createConversation } from "@/app/actions/conversations";
-import { NOTES_PANEL_OPEN } from "@/components/notes-sidebar-container";
 
 const POPUP_HEIGHT = 48;
 const SAFE_MARGIN = 12;
@@ -23,23 +20,8 @@ interface Position {
 export function TextSelectionPopup() {
   const [position, setPosition] = useState<Position | null>(null);
   const [selectedText, setSelectedText] = useState("");
-  const [canQueue, setCanQueue] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-  const { addNote, conversationId, contentType } = useConversation();
-
-  const slotType = contentType.toUpperCase() as "REPLY" | "POST" | "THREAD" | "ARTICLE";
-
-  useEffect(() => {
-    hasEmptySlots(slotType).then(setCanQueue);
-  }, [slotType]);
-
-  // Refresh after slots change (e.g. after adding to queue)
-  useEffect(() => {
-    const handler = () => hasEmptySlots(slotType).then(setCanQueue);
-    window.addEventListener("slots-updated", handler);
-    return () => window.removeEventListener("slots-updated", handler);
-  }, [slotType]);
+  const { addNote } = useConversation();
 
   const hidePopup = useCallback(() => {
     setPosition(null);
@@ -92,12 +74,26 @@ export function TextSelectionPopup() {
     };
   }, [hidePopup]);
 
-  function handleAddToNotes() {
-    addNote(selectedText);
-    window.getSelection()?.removeAllRanges();
+  async function handleAddToNotes() {
+    const selection = window.getSelection();
+    const anchorNode = selection?.anchorNode;
+    const messageEl =
+      anchorNode instanceof Element
+        ? anchorNode.closest("[data-message-id]")
+        : anchorNode?.parentElement?.closest("[data-message-id]");
+    const messageId = messageEl?.getAttribute("data-message-id");
+    if (!messageId) {
+      toast.error("Could not determine message");
+      return;
+    }
+    selection?.removeAllRanges();
     hidePopup();
-    window.dispatchEvent(new Event(NOTES_PANEL_OPEN));
-    toast.success("Added to Notes");
+    const ok = await addNote(selectedText, messageId);
+    if (ok) {
+      toast.success("Added to notes");
+    } else {
+      toast.error("Failed to save note");
+    }
   }
 
   async function handleNewDraft() {
@@ -112,38 +108,6 @@ export function TextSelectionPopup() {
       toast.success("Draft created");
     } catch {
       toast.error("Failed to create draft");
-    }
-  }
-
-  async function handleAddToQueue() {
-    navigator.clipboard.writeText(selectedText);
-    window.getSelection()?.removeAllRanges();
-    hidePopup();
-
-    try {
-      const result = await addToQueue(selectedText, conversationId, slotType);
-      if (result) {
-        const date = result.date.toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          timeZone: "UTC",
-        });
-        toast.success(`Copied + scheduled for ${date}, ${result.timeSlot}`);
-        window.dispatchEvent(new Event("slots-updated"));
-        window.dispatchEvent(new Event("drafts-updated"));
-        const isMobile = window.matchMedia("(max-width: 767px)").matches;
-        if (isMobile) {
-          router.push("/schedule");
-        } else {
-          router.push("/");
-          window.dispatchEvent(new Event("switch-to-scheduled"));
-        }
-      } else {
-        toast.error("No empty slots available");
-      }
-    } catch {
-      toast.error("Failed to add to queue");
     }
   }
 
@@ -186,27 +150,7 @@ export function TextSelectionPopup() {
             Notes
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Add to Notes</TooltipContent>
-      </Tooltip>
-
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-2 px-2.5 text-xs"
-            onClick={handleAddToQueue}
-            disabled={!canQueue}
-          >
-            <CalendarPlus className="h-3.5 w-3.5" />
-            Queue
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {canQueue
-            ? "Copy + schedule in next empty slot"
-            : "No empty slots — adjust your schedule"}
-        </TooltipContent>
+        <TooltipContent>Save to notes as AI context</TooltipContent>
       </Tooltip>
     </div>
   );

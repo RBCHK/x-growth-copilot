@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { ConversationView } from "./conversation-view";
-import { NotesSidebarContainer } from "@/components/notes-sidebar-container";
 import { ComposerSidebarContainer } from "@/components/composer-sidebar-container";
 import { ConversationProvider } from "@/contexts/conversation-context";
 import { getConversation } from "@/app/actions/conversations";
@@ -35,7 +34,6 @@ export default async function ConversationPage({ params }: Props) {
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 overflow-hidden md:rounded-[12px] md:bg-sidebar">
           <ConversationView />
-          <NotesSidebarContainer />
         </div>
         <ComposerSidebarContainer />
       </div>

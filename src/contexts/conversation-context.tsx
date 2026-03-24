@@ -48,7 +48,7 @@ interface ConversationContextValue {
   sendMessage: () => void;
   changeContentType: (type: ContentType) => void;
   updateComposer: (content: ComposerContent, platform: Platform) => void;
-  addNote: (content: string) => void;
+  addNote: (content: string, messageId: string) => Promise<boolean>;
   removeNote: (id: string) => void;
   updateNote: (id: string, content: string) => void;
   clearNotes: () => void;
@@ -275,16 +275,19 @@ export function ConversationProvider({
   }, [input, isLoading, conversationId, aiSendMessage]);
 
   const addNote = useCallback(
-    async (content: string) => {
+    async (content: string, messageId: string): Promise<boolean> => {
       const tempId = `n-${Date.now()}`;
-      setNotes((prev) => [...prev, { id: tempId, content, createdAt: new Date() }]);
+      setNotes((prev) => [...prev, { id: tempId, messageId, content, createdAt: new Date() }]);
       try {
-        const created = await addNoteAction(conversationId, content);
+        const created = await addNoteAction(conversationId, content, messageId);
         setNotes((prev) => prev.map((n) => (n.id === tempId ? created : n)));
+        router.refresh();
+        return true;
       } catch {
         setNotes((prev) => prev.filter((n) => n.id !== tempId));
+        router.refresh();
+        return false;
       }
-      router.refresh();
     },
     [conversationId, router]
   );
@@ -316,8 +319,13 @@ export function ConversationProvider({
   );
 
   const clearNotes = useCallback(async () => {
+    const prev = notesRef.current;
     setNotes([]);
-    await clearNotesAction(conversationId);
+    try {
+      await clearNotesAction(conversationId);
+    } catch {
+      setNotes(prev);
+    }
     router.refresh();
   }, [conversationId, router]);
 

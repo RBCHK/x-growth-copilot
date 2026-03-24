@@ -81,6 +81,7 @@ export async function getConversation(id: string) {
     })),
     notes: c.notes.map((n) => ({
       id: n.id,
+      messageId: n.messageId,
       content: n.content,
       createdAt: n.createdAt,
     })),
