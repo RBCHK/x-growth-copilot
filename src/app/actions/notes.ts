@@ -18,12 +18,13 @@ export async function getNotes(conversationId: string) {
   });
   return rows.map((r) => ({
     id: r.id,
+    messageId: r.messageId,
     content: r.content,
     createdAt: r.createdAt,
   }));
 }
 
-export async function addNote(conversationId: string, content: string) {
+export async function addNote(conversationId: string, content: string, messageId: string) {
   const userId = await requireUserId();
   const conversation = await prisma.conversation.findFirst({
     where: { id: conversationId, userId },
@@ -31,11 +32,22 @@ export async function addNote(conversationId: string, content: string) {
   });
   if (!conversation) throw new Error("Conversation not found");
 
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, conversationId },
+    select: { id: true },
+  });
+  if (!message) throw new Error("Message not found");
+
   const note = await prisma.note.create({
-    data: { conversationId, content },
+    data: { conversationId, content, messageId },
   });
   revalidatePath(`/c/${conversationId}`);
-  return { id: note.id, content: note.content, createdAt: note.createdAt };
+  return {
+    id: note.id,
+    messageId: note.messageId,
+    content: note.content,
+    createdAt: note.createdAt,
+  };
 }
 
 export async function removeNote(id: string, conversationId: string) {
@@ -46,7 +58,7 @@ export async function removeNote(id: string, conversationId: string) {
   });
   if (!conversation) throw new Error("Conversation not found");
 
-  await prisma.note.delete({ where: { id } });
+  await prisma.note.deleteMany({ where: { id, conversationId } });
   revalidatePath(`/c/${conversationId}`);
 }
 
@@ -58,7 +70,7 @@ export async function updateNote(id: string, content: string, conversationId: st
   });
   if (!conversation) throw new Error("Conversation not found");
 
-  await prisma.note.update({ where: { id }, data: { content } });
+  await prisma.note.updateMany({ where: { id, conversationId }, data: { content } });
   revalidatePath(`/c/${conversationId}`);
 }
 

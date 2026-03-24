@@ -1,9 +1,12 @@
 "use client";
 
 import { useRef, useCallback, useLayoutEffect, useEffect, type KeyboardEvent } from "react";
+import { Highlighter } from "lucide-react";
 import { ContentTypeDropdown } from "@/components/content-type-dropdown";
 import { ModelDropdown } from "@/components/model-dropdown";
 import { SendMessageButton } from "@/components/send-message-button";
+import { HighlightsDrawer } from "@/components/highlights-drawer";
+import { Button } from "@/components/ui/button";
 import { type ContentType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +24,7 @@ interface ChatInputProps {
   isFetchingTweet?: boolean;
   autoFocus?: boolean;
   className?: string;
+  highlightsCount?: number;
 }
 
 export function ChatInput({
@@ -33,6 +37,7 @@ export function ChatInput({
   isFetchingTweet,
   autoFocus,
   className,
+  highlightsCount = 0,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -92,6 +97,18 @@ export function ChatInput({
             <div className="flex items-center gap-3">
               {isFetchingTweet && (
                 <span className="text-xs text-muted-foreground animate-pulse">Loading tweet…</span>
+              )}
+              {highlightsCount > 0 && (
+                <HighlightsDrawer>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+                  >
+                    <Highlighter className="h-3.5 w-3.5" />
+                    {highlightsCount}
+                  </Button>
+                </HighlightsDrawer>
               )}
               <ModelDropdown disabled={disabled} />
               <SendMessageButton onClick={onSend} disabled={disabled || !value.trim()} />

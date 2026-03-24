@@ -10,6 +10,7 @@ export function ConversationView() {
     input,
     contentType,
     messages,
+    notes,
     isLoading,
     isFetchingTweet,
     error,
@@ -36,6 +37,7 @@ export function ConversationView() {
         onSend={sendMessage}
         disabled={isLoading}
         isFetchingTweet={isFetchingTweet}
+        highlightsCount={notes.length}
         className="px-8"
       />
       <TextSelectionPopup />

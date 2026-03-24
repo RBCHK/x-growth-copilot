@@ -1,5 +1,12 @@
 # React — Component Patterns
 
+### react-markdown `text` component override does not exist
+
+**Tried:** `components={{ text: ({ children }) => ... }}` in ReactMarkdown to wrap matched text in `<mark>`
+**Broke:** No error, but highlight never renders — `text` is not a valid component name in react-markdown v9+. Text nodes pass through parent elements (`p`, `li`, etc.) without a dedicated override.
+**Fix:** Use a rehype plugin that walks the HTML AST (hast) after markdown→HTML conversion. Find `type: "text"` nodes, split by regex, wrap matches in `<mark>` elements. This operates on rendered text, not raw markdown source.
+**Watch out:** If you try to inject `<mark>` into raw markdown before ReactMarkdown, it won't match — user selects rendered text (no `**`, `*` syntax), but source contains markdown formatting.
+
 ### Component declared inside another component
 
 **Tried:** `function NavLink(...) { ... }` declared inside `function MobileBottomNav() { ... }` to reuse `pathname` via closure
