@@ -1,58 +1,61 @@
-// clerkSetup() is called in globalSetup (clerk-global-setup.ts) BEFORE the dev server starts.
-// This file only handles the UI-based sign-in to create a storageState for authenticated tests.
+// clerkSetup() runs in globalSetup (clerk-global-setup.ts) BEFORE the dev server starts.
+// This setup project signs in via the Clerk UI and saves auth state
+// so all other projects can reuse it via storageState.
+import { setupClerkTestingToken } from "@clerk/testing/playwright";
 import { test as setup, expect } from "@playwright/test";
-import path from "path";
 
-setup.describe.configure({ mode: "serial" });
+const authFile = "tests/.auth/user.json";
 
-setup("check env vars", async () => {
-  if (!process.env.E2E_CLERK_USER_USERNAME || !process.env.E2E_CLERK_USER_PASSWORD) {
-    throw new Error(
-      "E2E_CLERK_USER_USERNAME and E2E_CLERK_USER_PASSWORD env vars are required for E2E tests."
-    );
-  }
-});
+setup("authenticate via clerk", async ({ page }) => {
+  // Set up testing token route interception (bypasses captcha/bot protection)
+  await setupClerkTestingToken({ page });
 
-const authFile = path.join(__dirname, ".auth/user.json");
-
-// Clerk test emails use +clerk_test suffix and verify with code 424242
-// See: https://clerk.com/docs/testing/test-emails-and-phones
-const TEST_VERIFICATION_CODE = "424242";
-
-setup("authenticate", async ({ page }) => {
+  // Navigate to sign-in page
   await page.goto("/sign-in");
+  await page.waitForLoadState("domcontentloaded");
 
-  // Fill email and click Continue
-  const emailInput = page.getByRole("textbox", { name: /email/i });
-  await emailInput.waitFor({ timeout: 15_000 });
+  // Fill in credentials via the Clerk UI form
+  const emailInput = page.locator('input[name="identifier"], input[placeholder*="email"]');
+  await emailInput.waitFor({ timeout: 10_000 });
   await emailInput.fill(process.env.E2E_CLERK_USER_USERNAME!);
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
 
-  // Fill password and click Continue
-  const passwordInput = page.locator('input[type="password"]');
-  await passwordInput.waitFor({ timeout: 10_000 });
+  const passwordInput = page.locator('input[name="password"], input[type="password"]');
+  await passwordInput.waitFor({ timeout: 5_000 });
   await passwordInput.fill(process.env.E2E_CLERK_USER_PASSWORD!);
+
+  // Click Continue to submit credentials
   await page.getByRole("button", { name: "Continue", exact: true }).click();
 
-  // Handle device verification (factor-two) if it appears
-  const factorTwoOrHome = await Promise.race([
-    page
-      .waitForURL((url) => !url.pathname.includes("/sign-in"), { timeout: 10_000 })
-      .then(() => "home" as const),
-    page.waitForURL("**/sign-in/factor-two", { timeout: 10_000 }).then(() => "factor-two" as const),
-  ]);
+  // Handle device verification (Clerk sends email code for new devices).
+  // Test emails with +clerk_test use verification code 424242.
+  // Wait for either redirect to home (no verification) or factor-two page
+  await page.waitForURL(
+    (url) => {
+      const u = url.toString();
+      return !u.includes("/sign-in") || u.includes("factor-two");
+    },
+    { timeout: 10_000 }
+  );
 
-  if (factorTwoOrHome === "factor-two") {
-    // Type the verification code — Clerk auto-submits when all digits are entered
-    await page.waitForTimeout(500);
-    await page.keyboard.type(TEST_VERIFICATION_CODE);
-
-    // Wait for redirect (Clerk auto-submits OTP)
-    await page.waitForURL((url) => !url.pathname.includes("/sign-in"), { timeout: 15_000 });
+  if (page.url().includes("factor-two")) {
+    // Clerk OTP input: click the first visible input box and type all digits
+    const otpInput = page.locator('input[name="codeInput"]').first();
+    if (await otpInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await otpInput.click();
+      await page.keyboard.type("424242", { delay: 50 });
+    } else {
+      // Fallback: focus the OTP area and type via keyboard
+      const otpArea = page.getByRole("textbox", { name: /verification/i });
+      await otpArea.click();
+      await page.keyboard.type("424242", { delay: 50 });
+    }
+    // Clerk auto-submits after all 6 digits are entered — no Continue click needed
   }
 
-  // Verify we're authenticated
-  expect(page.url()).not.toContain("/sign-in");
+  // Wait for successful auth — should redirect away from sign-in
+  await page.waitForURL((url) => !url.toString().includes("/sign-in"), { timeout: 15_000 });
+  await expect(page.locator("body")).toBeVisible();
 
+  // Persist auth state for all other projects
   await page.context().storageState({ path: authFile });
 });

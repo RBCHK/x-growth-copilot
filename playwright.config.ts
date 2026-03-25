@@ -31,7 +31,7 @@ export default defineConfig({
       url: baseURL,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
-      env: { ...process.env, ANTHROPIC_BASE_URL: "http://localhost:4567" },
+      env: { ...process.env, ANTHROPIC_BASE_URL: "http://localhost:4567/v1" },
     },
   ],
 
@@ -45,7 +45,7 @@ export default defineConfig({
       testIgnore: /mobile\//,
       use: {
         ...devices["Desktop Chrome"],
-        storageState: path.join(__dirname, "tests/.auth/user.json"),
+        storageState: "tests/.auth/user.json",
       },
       dependencies: ["setup"],
     },
@@ -55,7 +55,7 @@ export default defineConfig({
       use: {
         ...devices["iPhone 15 Pro"],
         browserName: "webkit",
-        storageState: path.join(__dirname, "tests/.auth/user.json"),
+        storageState: "tests/.auth/user.json",
       },
       dependencies: ["setup"],
     },

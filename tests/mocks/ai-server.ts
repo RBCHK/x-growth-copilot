@@ -53,7 +53,10 @@ export function startMockAIServer(port = 4567): Promise<http.Server> {
       if (req.url === "/health") {
         res.writeHead(200);
         res.end("ok");
-      } else if (req.method === "POST" && req.url?.startsWith("/v1/messages")) {
+      } else if (
+        req.method === "POST" &&
+        (req.url?.startsWith("/messages") || req.url?.startsWith("/v1/messages"))
+      ) {
         // Consume request body
         let body = "";
         req.on("data", (chunk) => (body += chunk));
