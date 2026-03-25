@@ -1,4 +1,11 @@
+import { setupClerkTestingToken } from "@clerk/testing/playwright";
 import { test, expect } from "@playwright/test";
+
+// setupClerkTestingToken adds route interception for Clerk API requests.
+// Needed in CI alongside storageState to prevent Clerk bot protection redirects.
+test.beforeEach(async ({ page }) => {
+  await setupClerkTestingToken({ page });
+});
 
 test.describe("Conversation flow", () => {
   test("create conversation and get AI response", async ({ page }) => {

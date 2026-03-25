@@ -1,4 +1,12 @@
+import { setupClerkTestingToken } from "@clerk/testing/playwright";
 import { test, expect } from "@playwright/test";
+
+// setupClerkTestingToken adds route interception for Clerk API requests.
+// WebKit on Linux (CI) needs this in addition to storageState — without it,
+// Clerk's bot protection redirects to sign-in on subsequent navigations.
+test.beforeEach(async ({ page }) => {
+  await setupClerkTestingToken({ page });
+});
 
 // These tests only run in the mobile-safari project (iPhone 15 Pro viewport)
 test.describe("Mobile navigation", () => {

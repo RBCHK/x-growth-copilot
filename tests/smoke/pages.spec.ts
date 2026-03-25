@@ -1,3 +1,4 @@
+import { setupClerkTestingToken } from "@clerk/testing/playwright";
 import { test, expect } from "@playwright/test";
 
 // Known non-actionable warnings to ignore
@@ -8,6 +9,9 @@ const IGNORED_PATTERNS = [
 
 // Collect console errors for every test
 test.beforeEach(async ({ page }) => {
+  // setupClerkTestingToken intercepts Clerk API requests to bypass bot protection.
+  // Needed in CI alongside storageState to prevent auth redirects.
+  await setupClerkTestingToken({ page });
   const errors: string[] = [];
   page.on("pageerror", (err) => errors.push(err.message));
   page.on("console", (msg) => {
