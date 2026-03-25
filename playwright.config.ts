@@ -5,6 +5,7 @@ const PORT = process.env.PORT || 3000;
 const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
+  globalSetup: path.join(__dirname, "tests/clerk-global-setup.ts"),
   testDir: path.join(__dirname, "tests"),
   outputDir: "test-results/",
   fullyParallel: true,

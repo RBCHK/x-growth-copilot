@@ -64,6 +64,7 @@ jobs:
       CLERK_SECRET_KEY: ${{ secrets.TEST_CLERK_SK }}
       E2E_CLERK_USER_USERNAME: ${{ secrets.E2E_CLERK_USER_USERNAME }}
       E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
+      ANTHROPIC_API_KEY: "sk-ant-mock-key-for-ci-tests"
       NEXT_PUBLIC_SENTRY_DSN: ""
     steps:
       - uses: actions/checkout@v4

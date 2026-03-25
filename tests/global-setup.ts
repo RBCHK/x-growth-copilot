@@ -1,12 +1,11 @@
-import { clerkSetup } from "@clerk/testing/playwright";
+// clerkSetup() is called in globalSetup (clerk-global-setup.ts) BEFORE the dev server starts.
+// This file only handles the UI-based sign-in to create a storageState for authenticated tests.
 import { test as setup, expect } from "@playwright/test";
 import path from "path";
 
 setup.describe.configure({ mode: "serial" });
 
-setup("clerk setup", async () => {
-  await clerkSetup();
-
+setup("check env vars", async () => {
   if (!process.env.E2E_CLERK_USER_USERNAME || !process.env.E2E_CLERK_USER_PASSWORD) {
     throw new Error(
       "E2E_CLERK_USER_USERNAME and E2E_CLERK_USER_PASSWORD env vars are required for E2E tests."
