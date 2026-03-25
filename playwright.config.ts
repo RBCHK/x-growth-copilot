@@ -18,12 +18,21 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
 
-  webServer: {
-    command: "npm run dev",
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  webServer: [
+    {
+      command: "npx tsx tests/mocks/start-ai-server.ts",
+      url: "http://localhost:4567/health",
+      reuseExistingServer: !process.env.CI,
+      timeout: 10_000,
+    },
+    {
+      command: "npm run dev",
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+      env: { ...process.env, ANTHROPIC_BASE_URL: "http://localhost:4567" },
+    },
+  ],
 
   projects: [
     {
@@ -32,6 +41,7 @@ export default defineConfig({
     },
     {
       name: "desktop",
+      testIgnore: /mobile\//,
       use: {
         ...devices["Desktop Chrome"],
         storageState: path.join(__dirname, "tests/.auth/user.json"),
@@ -40,6 +50,7 @@ export default defineConfig({
     },
     {
       name: "mobile-safari",
+      testMatch: /mobile\//,
       use: {
         ...devices["iPhone 15 Pro"],
         browserName: "webkit",

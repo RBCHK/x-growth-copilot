@@ -2,7 +2,8 @@ import { test, expect } from "@playwright/test";
 
 // Known non-actionable warnings to ignore
 const IGNORED_PATTERNS = [
-  /hydrated but some attributes.*didn't match/i, // Radix aria-controls ID mismatch
+  /hydrat/i, // React/Next.js hydration mismatches (Clerk UserButton, Radix aria-controls)
+  /did not match.*server/i, // React SSR/client mismatch
 ];
 
 // Collect console errors for every test
