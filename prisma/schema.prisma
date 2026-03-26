@@ -90,7 +90,7 @@ enum SlotType {
 
 enum SlotStatus {
   EMPTY
-  FILLED
+  SCHEDULED
   POSTED
 }
 

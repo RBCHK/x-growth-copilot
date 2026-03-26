@@ -70,7 +70,7 @@ export const MOCK_SLOTS: ScheduledSlot[] = [
     date: today(12, 0),
     timeSlot: "12:00 PM",
     slotType: "Post",
-    status: "filled",
+    status: "scheduled",
     draftId: "d3",
     draftTitle: "Re: Indie hackers don't need VCs",
   },

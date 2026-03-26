@@ -20,6 +20,17 @@ vi.mock("@/generated/prisma", () => ({
 
 vi.mock("@/lib/date-utils", () => ({
   calendarDateStr: vi.fn().mockReturnValue("2099-01-01"),
+  nowInTimezone: vi
+    .fn()
+    .mockReturnValue({ dateStr: "2099-01-01", timeSlot: "12:00 AM", date: new Date() }),
+  time24to12: vi.fn().mockImplementation((t: string) => t),
+  isSlotFuture: vi.fn().mockReturnValue(true),
+  addUTCDays: vi.fn().mockImplementation((d: Date, n: number) => {
+    const r = new Date(d);
+    r.setUTCDate(r.getUTCDate() + n);
+    return r;
+  }),
+  slotToUtcDate: vi.fn().mockImplementation((d: Date) => d),
 }));
 
 // Prisma mock with spies
@@ -150,7 +161,7 @@ describe("userId isolation — analytics", () => {
 });
 
 describe("userId isolation — schedule", () => {
-  it("getScheduledSlots fetches only FILLED/POSTED (not EMPTY) for userId", async () => {
+  it("getScheduledSlots fetches only SCHEDULED/POSTED (not EMPTY) for userId", async () => {
     const { getScheduledSlots } = await import("../schedule");
 
     await getScheduledSlots();
@@ -159,7 +170,7 @@ describe("userId isolation — schedule", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           userId: TEST_USER_ID,
-          status: { in: ["FILLED", "POSTED"] },
+          status: { in: ["SCHEDULED", "POSTED"] },
         }),
       })
     );
@@ -191,7 +202,7 @@ describe("userId isolation — schedule", () => {
     );
   });
 
-  it("addToQueue creates FILLED slot with correct userId", async () => {
+  it("addToQueue creates SCHEDULED slot with correct userId", async () => {
     prismaMock.strategyConfig.findFirst.mockResolvedValueOnce({
       scheduleConfig: {
         posts: {
@@ -215,7 +226,7 @@ describe("userId isolation — schedule", () => {
 
     expect(prismaMock.scheduledSlot.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ userId: TEST_USER_ID, status: "FILLED" }),
+        data: expect.objectContaining({ userId: TEST_USER_ID, status: "SCHEDULED" }),
       })
     );
   });

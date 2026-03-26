@@ -10,6 +10,7 @@ import {
   Calendar,
   Send,
   Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { useConversation } from "@/contexts/conversation-context";
 import { Button } from "@/components/ui/button";
@@ -141,6 +142,7 @@ export function ComposerSidebar({
   const connectedPlatforms: Platform[] = xProfile ? ["X"] : [];
 
   const [publishing, setPublishing] = useState(false);
+  const [published, setPublished] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState("");
 
@@ -150,7 +152,11 @@ export function ComposerSidebar({
     checkExistingSchedule(conversationId)
       .then((slot) => {
         if (cancelled || !slot) return;
-        setScheduledFor(slotToLocalDate(slot.date, slot.timeSlot));
+        if (slot.status === "POSTED") {
+          setPublished(true);
+        } else {
+          setScheduledFor(slotToLocalDate(slot.date, slot.timeSlot));
+        }
       })
       .catch(() => {});
     return () => {
@@ -222,6 +228,7 @@ export function ComposerSidebar({
         });
         window.dispatchEvent(new Event("slots-updated"));
         window.dispatchEvent(new Event("drafts-updated"));
+        setPublished(true);
       }
 
       for (const [platform, error] of Object.entries(result.errors)) {
@@ -361,7 +368,17 @@ export function ComposerSidebar({
           {composerSaveStatus === "saved" && "Saved"}
         </span>
         <div className="flex items-center gap-2">
-          {scheduledFor ? (
+          {published ? (
+            <Button
+              variant="default"
+              size="sm"
+              className="gap-1.5 bg-green-600 hover:bg-green-600 text-white"
+              disabled
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Published
+            </Button>
+          ) : scheduledFor ? (
             <Button variant="secondary" size="sm" className="gap-1.5" disabled>
               <Calendar className="h-3.5 w-3.5" />
               {countdown}

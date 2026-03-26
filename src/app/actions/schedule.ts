@@ -27,34 +27,6 @@ const slotTypeFromPrisma = (v: PrismaSlotType): SlotType => {
   return map[v];
 };
 
-// Lazy update: auto-transition FILLED slots past their scheduled time → POSTED
-async function checkAndUpdatePassedSlots(userId: string, timezone: string) {
-  const now = new Date();
-  const filledSlots = await prisma.scheduledSlot.findMany({
-    where: { status: "FILLED", userId },
-  });
-
-  const passedSlots = filledSlots.filter((s) => slotToUtcDate(s.date, s.timeSlot, timezone) < now);
-  if (passedSlots.length === 0) return;
-
-  const passedIds = passedSlots.map((s) => s.id);
-
-  await prisma.scheduledSlot.updateMany({
-    where: { id: { in: passedIds } },
-    data: { status: "POSTED" },
-  });
-
-  const withConversation = passedSlots.filter((s) => s.conversationId);
-  await Promise.all(
-    withConversation.map((s) =>
-      prisma.conversation.update({
-        where: { id: s.conversationId! },
-        data: { status: "POSTED" },
-      })
-    )
-  );
-}
-
 // ─── Schedule types ───────────────────────────────────────
 
 export type DayKey = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
@@ -204,23 +176,22 @@ function computeVirtualSlots(
 // ─── Public actions ───────────────────────────────────────
 
 /**
- * Returns scheduled slots (FILLED + POSTED from DB) merged with virtual EMPTY slots
+ * Returns scheduled slots (SCHEDULED + POSTED from DB) merged with virtual EMPTY slots
  * computed from ScheduleConfig. Default: 14 days from today in the user's timezone.
  */
 export async function getScheduledSlots(options?: { from?: string; days?: number }) {
   const { id: userId, timezone } = await requireUser();
-  await checkAndUpdatePassedSlots(userId, timezone);
 
   const days = options?.days ?? 14;
   const fromDateStr = options?.from ?? nowInTimezone(timezone).dateStr;
   const fromDate = new Date(`${fromDateStr}T00:00:00.000Z`);
   const toDate = addUTCDays(fromDate, days);
 
-  // Fetch only real (FILLED + POSTED) rows
+  // Fetch only real (SCHEDULED + POSTED) rows
   const rows = await prisma.scheduledSlot.findMany({
     where: {
       userId,
-      status: { in: ["FILLED", "POSTED"] },
+      status: { in: ["SCHEDULED", "POSTED"] },
       date: { gte: fromDate, lt: toDate },
     },
     include: { conversation: true },
@@ -290,7 +261,7 @@ export async function hasEmptySlots(slotType: PrismaSlotType): Promise<boolean> 
   const toDate = addUTCDays(todayUTC, CHECK_DAYS);
 
   const occupied = await prisma.scheduledSlot.findMany({
-    where: { userId, status: "FILLED", slotType, date: { gte: todayUTC, lt: toDate } },
+    where: { userId, status: "SCHEDULED", slotType, date: { gte: todayUTC, lt: toDate } },
     select: { date: true, timeSlot: true },
   });
   const occupiedKeys = new Set(occupied.map((s) => `${calendarDateStr(s.date)}_${s.timeSlot}`));
@@ -310,24 +281,24 @@ export async function hasEmptySlots(slotType: PrismaSlotType): Promise<boolean> 
 
 export async function toggleSlotPosted(
   id: string
-): Promise<{ postedAt?: Date; status: "POSTED" | "FILLED" | "EMPTY" }> {
+): Promise<{ postedAt?: Date; status: "POSTED" | "SCHEDULED" | "EMPTY" }> {
   const userId = await requireUserId();
   const slot = await prisma.scheduledSlot.findFirst({ where: { id, userId } });
   if (!slot) throw new Error("Slot not found");
 
   if (slot.status === "POSTED") {
     if (slot.conversationId) {
-      // Revert to FILLED — slot has content, keep the row
+      // Revert to SCHEDULED — slot has content, keep the row
       await prisma.scheduledSlot.update({
         where: { id },
-        data: { status: "FILLED", postedAt: null },
+        data: { status: "SCHEDULED", postedAt: null },
       });
       await prisma.conversation.update({
         where: { id: slot.conversationId },
         data: { status: "SCHEDULED" },
       });
       revalidatePath("/");
-      return { status: "FILLED" };
+      return { status: "SCHEDULED" };
     } else {
       // No content — delete row; slot reappears as virtual EMPTY on next fetch
       await prisma.scheduledSlot.delete({ where: { id } });
@@ -451,7 +422,7 @@ export async function publishPost(
 
 /**
  * Finds the next available slot of the given type from ScheduleConfig and creates
- * a FILLED row for it. Looks up to 60 days ahead.
+ * a SCHEDULED row for it. Looks up to 60 days ahead.
  */
 export async function addToQueue(
   content: string,
@@ -470,12 +441,12 @@ export async function addToQueue(
   const LOOK_AHEAD_DAYS = 60;
   const toDate = addUTCDays(todayUTC, LOOK_AHEAD_DAYS);
 
-  // Fetch existing FILLED + POSTED to avoid conflicts
+  // Fetch existing SCHEDULED + POSTED to avoid conflicts
   const occupied = await prisma.scheduledSlot.findMany({
     where: {
       userId,
       date: { gte: todayUTC, lt: toDate },
-      status: { in: ["FILLED", "POSTED"] },
+      status: { in: ["SCHEDULED", "POSTED"] },
       slotType,
     },
     select: { date: true, timeSlot: true },
@@ -507,7 +478,7 @@ export async function addToQueue(
           date,
           timeSlot,
           slotType,
-          status: "FILLED",
+          status: "SCHEDULED",
           content,
           conversationId: conversationId ?? null,
         },
@@ -635,16 +606,23 @@ async function _getGoalTrackingData(userId: string): Promise<GoalTrackingData | 
 // ─── Composer: re-schedule helpers ────────────────────────
 
 /**
- * Check if there's an existing FILLED ScheduledSlot linked to this conversation.
+ * Check if there's an existing SCHEDULED ScheduledSlot linked to this conversation.
  * Returns the slot if found, null otherwise.
  */
 export async function checkExistingSchedule(
   conversationId: string
-): Promise<{ id: string; date: Date; timeSlot: string; content: string | null } | null> {
+): Promise<{
+  id: string;
+  date: Date;
+  timeSlot: string;
+  content: string | null;
+  status: string;
+} | null> {
   const userId = await requireUserId();
   const slot = await prisma.scheduledSlot.findFirst({
-    where: { userId, conversationId, status: "FILLED" },
-    select: { id: true, date: true, timeSlot: true, content: true },
+    where: { userId, conversationId, status: { in: ["SCHEDULED", "POSTED"] } },
+    select: { id: true, date: true, timeSlot: true, content: true, status: true },
+    orderBy: { date: "desc" },
   });
   return slot ?? null;
 }

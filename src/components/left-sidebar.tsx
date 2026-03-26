@@ -68,11 +68,11 @@ export function slotStatusConfig(status: SlotStatus) {
         badgeClassName: "text-muted-foreground",
         label: "Empty",
       };
-    case "filled":
+    case "scheduled":
       return {
         className: "border border-border",
         badgeClassName: "text-blue-400",
-        label: "Ready",
+        label: "Scheduled",
       };
     case "posted":
       return {
