@@ -4,7 +4,7 @@ export type ContentType = (typeof CONTENT_TYPES)[number];
 export const DRAFT_STATUSES = ["draft", "packaged", "scheduled", "posted"] as const;
 export type DraftStatus = (typeof DRAFT_STATUSES)[number];
 
-export const SLOT_STATUSES = ["empty", "filled", "posted"] as const;
+export const SLOT_STATUSES = ["empty", "scheduled", "posted"] as const;
 export type SlotStatus = (typeof SLOT_STATUSES)[number];
 
 export const SLOT_TYPES = ["Reply", "Post", "Thread", "Article", "Quote"] as const;
@@ -28,6 +28,7 @@ export interface ScheduledSlot {
   status: SlotStatus;
   draftId?: string;
   draftTitle?: string;
+  platforms?: Platform[];
   postedAt?: Date;
 }
 

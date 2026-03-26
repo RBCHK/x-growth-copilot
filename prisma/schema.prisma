@@ -90,7 +90,7 @@ enum SlotType {
 
 enum SlotStatus {
   EMPTY
-  FILLED
+  SCHEDULED
   POSTED
 }
 
@@ -117,6 +117,7 @@ enum ProposalStatus {
 
 enum XApiResourceType {
   POST_READ
+  POST_WRITE
   USER_READ
   TREND_READ
 }
